@@ -1,0 +1,29 @@
+
+
+services:
+  db:
+    image: postgres:15
+    container_name: hotel-db
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: hotel_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  backend:
+    build: .
+    container_name: hotel-backend
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgres://user:password@db:5432/hotel_db
+    ports:
+      - "5001:5001"
+
+volumes:
+  db_data:
