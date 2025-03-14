@@ -2,6 +2,10 @@ const { analyzeMessage } = require("../nlp/nlpService");
 const Room = require("../models/Room");
 const Reservation = require("../models/Reservation");
 const { Op } = require("sequelize");
+const { 
+  CHAT_INTENTS, 
+  RESPONSE_TYPES 
+} = require("./messageTypes");
 
 // 🔥 Funcție pentru procesarea mesajului de chat
 const handleChatMessage = async (message) => {
@@ -84,7 +88,7 @@ const handleChatMessage = async (message) => {
     };
 
     // 📌 Rezervare nouă - Verificăm camerele disponibile
-    if (intent === "reservation") {
+    if (intent === CHAT_INTENTS.RESERVATION) {
       const today = new Date();
       const firstDateEntry = entities.dates?.[0];
 
@@ -102,36 +106,37 @@ const handleChatMessage = async (message) => {
       const availableRooms = await getAvailableRooms(startDate, endDate);
 
       response = {
-        intent: "reservation",
+        intent: CHAT_INTENTS.RESERVATION,
         message: `📅 Rezervare pentru ${entities.name || "N/A"} într-o cameră ${entities.roomType || "necunoscută"} de la ${startDate} până la ${endDate} (${entities.preferences || "fără preferințe"})`,
-        type: "options",
+        type: RESPONSE_TYPES.OPTIONS,
         reservation: {
           guestName: entities.name || "N/A",
           roomType: entities.roomType || "necunoscută",
           startDate,
           endDate,
           preferences: entities.preferences || "fără preferințe",
+          availableRooms
         },
-        extraIntents: ["show_calendar"],
+        extraIntents: ["show_calendar"]
       };
     }
 
     // 📌 Modificare rezervare
-    else if (intent === "modify_reservation") {
+    else if (intent === CHAT_INTENTS.MODIFY_RESERVATION) {
       response = {
-        intent: "modify_reservation",
+        intent: CHAT_INTENTS.MODIFY_RESERVATION,
         message: `📅 Modificare rezervare pentru ${entities.name || "N/A"} la noua dată: ${entities.date || "dată nespecificată"}`,
-        type: "form",
-        formFields: [{ name: "date", label: "Dată nouă", type: "date" }],
+        type: RESPONSE_TYPES.FORM,
+        formFields: [{ name: "date", label: "Dată nouă", type: "date" }]
       };
     }
 
     // 📌 Anulare rezervare
-    else if (intent === "cancel_reservation") {
+    else if (intent === CHAT_INTENTS.CANCEL_RESERVATION) {
       response = {
-        intent: "cancel_reservation",
+        intent: CHAT_INTENTS.CANCEL_RESERVATION,
         message: `⚠️ Sigur dorești să anulezi rezervarea lui ${entities.name || "N/A"} pe ${entities.date || "dată nespecificată"}?`,
-        type: "confirm",
+        type: RESPONSE_TYPES.CONFIRM
       };
     }
 
@@ -139,7 +144,11 @@ const handleChatMessage = async (message) => {
     return response;
   } catch (error) {
     console.error("❌ Eroare la procesarea mesajului:", error);
-    return { intent: "unknown_intent", message: "❌ Eroare la procesarea mesajului." };
+    return { 
+      intent: CHAT_INTENTS.UNKNOWN, 
+      type: RESPONSE_TYPES.ERROR,
+      message: "❌ Eroare la procesarea mesajului." 
+    };
   }
 };
 

@@ -1,5 +1,30 @@
 const Reservation = require("../models/Reservation");
 const { getClients } = require("./webSocket");
+const { OUTGOING_MESSAGE_TYPES } = require("./messageTypes");
+
+// 🔥 Formatare rezervare pentru răspuns
+const formatReservation = (reservation) => ({
+  id: reservation.id,
+  fullName: reservation.fullName,
+  phone: reservation.phone,
+  email: reservation.email,
+  startDate: reservation.startDate,
+  endDate: reservation.endDate,
+  status: reservation.status,
+  rooms: reservation.rooms.map(room => ({
+    roomNumber: room.roomNumber,
+    type: room.type,
+    basePrice: room.basePrice,
+    price: room.price,
+    startDate: room.startDate || reservation.startDate,
+    endDate: room.endDate || reservation.endDate,
+    status: room.status
+  })),
+  isPaid: reservation.isPaid,
+  hasInvoice: reservation.hasInvoice,
+  hasReceipt: reservation.hasReceipt,
+  notes: reservation.notes
+});
 
 // 🔥 Funcție care trimite rezervările active prin WebSocket
 const emitReservationsUpdate = async () => {
@@ -24,43 +49,25 @@ const emitReservationsUpdate = async () => {
       ]
     });
 
-    const formattedReservations = activeReservations.map((res) => ({
-      id: res.id,
-      fullName: res.fullName,
-      phone: res.phone,
-      email: res.email,
-      startDate: res.startDate,
-      endDate: res.endDate,
-      status: res.status,
-      rooms: res.rooms.map(room => ({
-        roomNumber: room.roomNumber,
-        type: room.type,
-        basePrice: room.basePrice,
-        price: room.price,
-        startDate: room.startDate || res.startDate,
-        endDate: room.endDate || res.endDate,
-        status: room.status
-      })),
-      isPaid: res.isPaid,
-      hasInvoice: res.hasInvoice,
-      hasReceipt: res.hasReceipt,
-      notes: res.notes
-    }));
+    const formattedReservations = activeReservations.map(formatReservation);
 
     console.log("📡 Trimit rezervări actualizate prin WebSocket:", formattedReservations);
 
     const clients = getClients();
+    const message = JSON.stringify({ 
+      type: OUTGOING_MESSAGE_TYPES.RESERVATIONS_UPDATE,
+      action: 'sync',  // Indică o sincronizare completă a rezervărilor
+      reservations: formattedReservations 
+    });
 
     clients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify({ 
-          type: "active_reservations", 
-          reservations: formattedReservations 
-        }));
+        client.send(message);
       }
     });
   } catch (error) {
     console.error("❌ Eroare la trimiterea rezervărilor prin WebSocket:", error);
+    throw error;
   }
 };
 
@@ -87,36 +94,24 @@ const sendActiveReservations = async (ws) => {
       ]
     });
 
-    const formattedReservations = activeReservations.map((res) => ({
-      id: res.id,
-      fullName: res.fullName,
-      phone: res.phone,
-      email: res.email,
-      startDate: res.startDate,
-      endDate: res.endDate,
-      status: res.status,
-      rooms: res.rooms.map(room => ({
-        roomNumber: room.roomNumber,
-        type: room.type,
-        basePrice: room.basePrice,
-        price: room.price,
-        startDate: room.startDate || res.startDate,
-        endDate: room.endDate || res.endDate,
-        status: room.status
-      })),
-      isPaid: res.isPaid,
-      hasInvoice: res.hasInvoice,
-      hasReceipt: res.hasReceipt,
-      notes: res.notes
-    }));
+    const formattedReservations = activeReservations.map(formatReservation);
 
     ws.send(JSON.stringify({ 
-      type: "active_reservations", 
+      type: OUTGOING_MESSAGE_TYPES.RESERVATIONS_UPDATE,
+      action: 'init',  // Indică inițializarea conexiunii
       reservations: formattedReservations 
     }));
   } catch (error) {
     console.error("❌ Eroare la obținerea rezervărilor active:", error);
+    ws.send(JSON.stringify({
+      type: OUTGOING_MESSAGE_TYPES.ERROR,
+      message: "Eroare la obținerea rezervărilor active"
+    }));
   }
 };
 
-module.exports = { emitReservationsUpdate, sendActiveReservations };
+module.exports = { 
+  emitReservationsUpdate, 
+  sendActiveReservations,
+  formatReservation
+};

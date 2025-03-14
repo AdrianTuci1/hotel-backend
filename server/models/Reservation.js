@@ -1,6 +1,5 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../db").sequelize;
-const Room = require("./Room");
 
 const Reservation = sequelize.define("Reservation", {
   id: {
