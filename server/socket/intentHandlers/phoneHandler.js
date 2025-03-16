@@ -6,6 +6,8 @@ const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
  * @param {Array} extraIntents - Intențiile adiționale detectate
  * @returns {Object} - Răspunsul formatat
  */
+
+
 const handleAddPhoneIntent = (entities, extraIntents = []) => {
   // Verificăm dacă există deja un număr de telefon în entități
   if (entities.phone) {

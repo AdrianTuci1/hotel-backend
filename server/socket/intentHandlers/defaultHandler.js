@@ -12,11 +12,6 @@ const handleDefaultIntent = (entities, extraIntents = []) => {
     entities,
     extraIntents: extraIntents || [],
     title: "Cum vă pot ajuta?",
-    options: [
-      { id: "reservation", title: "Rezervare nouă", action: "create_reservation" },
-      { id: "check_bookings", title: "Verificare rezervări", action: "check_reservations" },
-      { id: "room_status", title: "Stare camere", action: "check_rooms" }
-    ],
     message: "Nu am înțeles exact ce doriți. Vă pot ajuta cu una din următoarele opțiuni:"
   };
 };

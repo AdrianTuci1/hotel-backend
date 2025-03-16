@@ -11,7 +11,7 @@ const handleReservationIntent = async (entities, extraIntents = []) => {
   let response = {
     intent: CHAT_INTENTS.RESERVATION,
     entities,
-    extraIntents: extraIntents || [],
+    extraIntents: ["show_calendar"],
   };
 
   // Verificăm disponibilitatea pentru rezervare

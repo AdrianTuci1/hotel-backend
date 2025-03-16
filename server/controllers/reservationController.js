@@ -1,6 +1,6 @@
 const Room = require("../models/Room");
 const Reservation = require("../models/Reservation");
-const { emitReservationsUpdate } = require("../socket/reservationHandler");
+const { emitReservationsUpdate } = require("../socket/services/reservationService");
 
 const createReservation = async (req, res) => {
   try {
@@ -19,11 +19,12 @@ const createReservation = async (req, res) => {
       notes 
     } = req.body;
 
+
     // Validare date de bază
-    if (!fullName || !phone || !email || !startDate || !endDate || !rooms || !Array.isArray(rooms)) {
+    if (!fullName || !startDate || !endDate || !rooms || !Array.isArray(rooms)) {
       return res.status(400).json({ 
         message: "❌ Date incomplete pentru rezervare.",
-        required: ["fullName", "phone", "email", "startDate", "endDate", "rooms[]"]
+        required: ["fullName", "startDate", "endDate", "rooms[]"]
       });
     }
 

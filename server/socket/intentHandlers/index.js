@@ -1,27 +1,36 @@
-const { CHAT_INTENTS } = require("../utils/messageTypes");
+const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
 const { handleReservationIntent } = require("./reservationHandler");
-const { handleModifyReservationIntent, handleCancelReservationIntent } = require("./modifyReservationHandler");
+const { findReservationByRoomAndDate } = require("./modifyReservationHandler");
 const { handleAddPhoneIntent } = require("./phoneHandler");
-const { handleCreateRoomIntent, handleModifyRoomIntent, handleDeleteRoomIntent } = require("./roomHandler");
+const { handleCreateRoomIntent, handleModifyRoomIntent } = require("./roomHandler");
 const { handleSellProductIntent } = require("./posHandler");
 const { handleDefaultIntent } = require("./defaultHandler");
+const { 
+  handleShowCalendarIntent,
+  handleShowStockIntent,
+  handleShowReportsIntent,
+  handleShowInvoicesIntent,
+  handleShowPosIntent
+} = require("./uiHandlers");
 
 /**
  * Map de handlere pentru fiecare intenție
  */
 
 const intentHandlers = {
+  [CHAT_INTENTS.SHOW_CALENDAR]: handleShowCalendarIntent,
+  [CHAT_INTENTS.SHOW_STOCK]: handleShowStockIntent,
+  [CHAT_INTENTS.SHOW_REPORTS]: handleShowReportsIntent,
+  [CHAT_INTENTS.SHOW_INVOICES]: handleShowInvoicesIntent,
+  [CHAT_INTENTS.SHOW_POS]: handleShowPosIntent,
   
   // Rezervări
   [CHAT_INTENTS.RESERVATION]: handleReservationIntent,
-  [CHAT_INTENTS.MODIFY_RESERVATION]: handleModifyReservationIntent,
-  [CHAT_INTENTS.CANCEL_RESERVATION]: handleCancelReservationIntent,
+  [CHAT_INTENTS.MODIFY_RESERVATION]: findReservationByRoomAndDate,
   [CHAT_INTENTS.ADD_PHONE]: handleAddPhoneIntent,
-  
   // Camere
   [CHAT_INTENTS.CREATE_ROOM]: handleCreateRoomIntent,
   [CHAT_INTENTS.MODIFY_ROOM]: handleModifyRoomIntent,
-  [CHAT_INTENTS.DELETE_ROOM]: handleDeleteRoomIntent,
   
   // POS și Stoc
   [CHAT_INTENTS.SELL_PRODUCT]: handleSellProductIntent,
@@ -36,11 +45,36 @@ const intentHandlers = {
  */
 const processIntent = async (intent, entities, extraIntents = []) => {
   try {
+    // Obținem handler-ul corect pentru intent
     const handler = intentHandlers[intent] || handleDefaultIntent;
-    return await handler(entities, extraIntents);
+    
+    // Asigurăm că entities și extraIntents sunt obiecte/array-uri valide
+    const validEntities = entities || {};
+    const validExtraIntents = extraIntents || [];
+    
+    // Apelăm handler-ul și obținem răspunsul
+    let response = await handler(validEntities, validExtraIntents);
+    
+    // Asigurăm formatul standardizat pentru răspuns
+    return {
+      intent: response.intent || intent,
+      message: response.message || `🔹 Intent: ${intent}`,
+      type: response.type,
+      reservation: response.reservation,
+      extraIntents: response.extraIntents || validExtraIntents,
+      // Nu includem entities în răspunsul final conform cerințelor de simplificare
+    };
   } catch (error) {
     console.error(`❌ Eroare la procesarea intenției ${intent}:`, error);
-    throw error;
+    
+    // Returnăm un răspuns de eroare formatat
+    return {
+      intent,
+      type: RESPONSE_TYPES.ERROR,
+      message: `❌ Eroare la procesarea intenției: ${error.message}`,
+      extraIntents,
+      reservation: null
+    };
   }
 };
 

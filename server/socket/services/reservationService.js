@@ -30,6 +30,52 @@ const formatReservation = (reservation) => ({
     hasReceipt: reservation.hasReceipt,
     notes: reservation.notes
   });
+
+  // 🔥 Funcție care trimite rezervările active prin WebSocket
+const emitReservationsUpdate = async () => {
+    try {
+      const activeReservations = await Reservation.findAll({
+        where: {
+          status: ["booked", "confirmed"]
+        },
+        attributes: [
+          "id",
+          "fullName",
+          "phone",
+          "email",
+          "startDate",
+          "endDate",
+          "status",
+          "rooms",
+          "isPaid",
+          "hasInvoice",
+          "hasReceipt",
+          "notes"
+        ]
+      });
+  
+      const formattedReservations = activeReservations.map(formatReservation);
+  
+      console.log("📡 Trimit rezervări actualizate prin WebSocket:", formattedReservations);
+  
+      const clients = getClients();
+      const message = JSON.stringify({ 
+        type: OUTGOING_MESSAGE_TYPES.RESERVATIONS_UPDATE,
+        action: 'sync',  // Indică o sincronizare completă a rezervărilor
+        reservations: formattedReservations 
+      });
+  
+      clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(message);
+        }
+      });
+    } catch (error) {
+      console.error("❌ Eroare la trimiterea rezervărilor prin WebSocket:", error);
+      throw error;
+    }
+  };
+  
   
   // 🔥 Obține toate rezervările active din baza de date
   const getActiveReservations = async () => {
@@ -85,5 +131,6 @@ const formatReservation = (reservation) => ({
   module.exports = {
     formatReservation,
     getActiveReservations,
+    emitReservationsUpdate,
     sendReservationsUpdateMessage
   }
