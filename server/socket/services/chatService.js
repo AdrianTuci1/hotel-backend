@@ -1,5 +1,5 @@
 const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
-const nlpService = require("../../nlp/nlpService");
+const { analyzeMessage } = require("../../nlp/nlpService");
 const { getIntentHandler } = require("../intentHandlers");
 
 /**
@@ -14,7 +14,7 @@ const processIntent = async (message, sendResponse) => {
   
   try {
     // Apelăm serviciul NLP pentru a obține intenția și entitățile
-    const { intent, entities, extraIntents } = await nlpService.classifyMessage(message);
+    const { intent, entities, extraIntents } = await analyzeMessage(message);
     console.log(`📋 Intent detectat: ${intent}, entități:`, entities);
     
     // Verificăm dacă avem un handler pentru intenția detectată

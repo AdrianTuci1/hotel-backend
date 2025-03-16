@@ -103,8 +103,13 @@ ws.onmessage = (event) => {
 ```
 server/
 ├── socket/
+│   ├── index.js               # Punct de intrare principal pentru WebSocket
+│   ├── actions/
+│   │   ├── actionHandler.js   # Processor pentru mesaje
+│   │   └── connectionHandler.js # Handler pentru conexiuni WebSocket
 │   ├── controllers/
 │   │   ├── chatController.js      # Controller pentru mesaje de chat
+│   │   ├── automationController.js # Controller pentru automatizări
 │   │   └── reservationController.js # Controller pentru sincronizarea rezervărilor
 │   ├── intentHandlers/
 │   │   ├── index.js             # Maparea intențiilor la handleri
@@ -117,20 +122,20 @@ server/
 │   │   ├── chatService.js       # Serviciu pentru procesarea mesajelor
 │   │   ├── nlpService.js        # Serviciu pentru procesarea limbajului natural
 │   │   └── reservationService.js # Serviciu pentru operațiuni cu rezervări
-│   ├── utils/
-│   │   └── messageTypes.js      # Constante pentru tipuri de mesaje și intenții
-│   └── webSocket.js            # Implementarea WebSocket
+│   └── utils/
+│       └── messageTypes.js      # Constante pentru tipuri de mesaje și intenții
 └── index.js                     # Server principal
 ```
 
 ## Fluxul de Procesare a Mesajelor
 
 1. **Primirea Mesajului** - Un mesaj de chat este primit de la client prin WebSocket
-2. **Controller** (`chatController.js`) - Controllerul gestionează mesajul primit și pregătește funcția callback
-3. **Procesare Intent** (`chatService.js`) - Serviciul apelează NLP pentru a identifica intenția și entitățile
-4. **Selecție Handler** - Se selectează handlerul potrivit pentru intenția detectată
-5. **Execuție Handler** - Handlerul procesează entitățile și construiește răspunsul
-6. **Trimitere Răspuns** - Handlerul apelează callback-ul pentru a trimite răspunsul direct către client
+2. **Connection Handler** (`connectionHandler.js`) - Gestionează conexiunea WebSocket și rutarea mesajelor
+3. **Action Handler** (`actionHandler.js`) - Procesează mesajele și le direcționează către handlerii corespunzători
+4. **Procesare Intent** (`chatService.js`) - Serviciul apelează NLP pentru a identifica intenția și entitățile
+5. **Selecție Handler** - Se selectează handlerul potrivit pentru intenția detectată
+6. **Execuție Handler** - Handlerul procesează entitățile și construiește răspunsul
+7. **Trimitere Răspuns** - Handlerul apelează callback-ul pentru a trimite răspunsul direct către client
 
 ## Protocolul de Comunicare
 
@@ -213,6 +218,7 @@ const handleIntent = (entities, extraIntents, sendResponse) => {
 4. **Extensibilitate** - Adăugarea de noi intenții se face simplu prin crearea unui nou handler
 5. **Robustețe** - Implementarea WebSocket oferă o conexiune persistentă pentru comunicare în timp real
 6. **Comunicare Bidirecțională** - Sistemul permite atât comenzi de la client, cât și notificări automate de la server
+7. **Arhitectură Centralizată** - Fișierul `index.js` acționează ca punct unic de intrare pentru modulul de socket
 
 ## Exemplu de Integrare Client
 
@@ -270,17 +276,17 @@ Client ─────┐                                      ┌────�
             │                                      │
             ▼                                      │
 ┌─────────────────────┐                           │
-│    WebSocket        │                           │
+│    socket/index.js  │                           │
 └─────────┬───────────┘                           │
           │                                       │
           ▼                                       │
 ┌─────────────────────┐                           │
-│  chatController.js  │                           │
+│ connectionHandler.js│                           │
 └─────────┬───────────┘                           │
           │                                       │
           ▼                                       │
 ┌─────────────────────┐                           │
-│   chatService.js    │                           │
+│  actionHandler.js   │                           │
 └─────────┬───────────┘                           │
           │                                       │
           ▼                                       │
@@ -354,10 +360,11 @@ Pentru a adăuga o nouă intenție:
 
 Erorile sunt gestionate la fiecare nivel al arhitecturii:
 
-1. **Controller Level** - Erori de comunicare WebSocket
-2. **Service Level** - Erori de procesare a intențiilor
-3. **Handler Level** - Erori specifice handlerului
-4. **Reservation Level** - Erori de sincronizare a rezervărilor
+1. **Connection Level** - Erori de comunicare WebSocket și conexiune
+2. **Action Level** - Erori de procesare a mesajelor
+3. **Service Level** - Erori de procesare a intențiilor
+4. **Handler Level** - Erori specifice handlerului
+5. **Reservation Level** - Erori de sincronizare a rezervărilor
 
 Toate erorile sunt raportate clientului într-un format standardizat.
 
@@ -376,22 +383,16 @@ Sistemul folosește biblioteca WebSocket nativă (`ws`) pentru gestionarea conex
 ```javascript
 // Inițializare server WebSocket
 const WebSocket = require('ws');
-const wss = new WebSocket.Server({ noServer: true });
+const { handleConnection } = require('./actions/connectionHandler');
 
-// Gestionarea conexiunilor
-wss.on('connection', (ws) => {
-  console.log('Client conectat');
+const initSocket = () => {
+  const wss = new WebSocket.Server({ noServer: true });
   
-  // Gestionarea mesajelor primite
-  ws.on('message', (message) => {
-    // Procesare mesaj...
-  });
+  // Gestionarea conexiunilor folosind handlerul specializat
+  wss.on('connection', handleConnection);
   
-  // Gestionarea deconectărilor
-  ws.on('close', () => {
-    console.log('Client deconectat');
-  });
-});
+  return wss;
+};
 ```
 
 ## Note de Implementare
@@ -400,7 +401,4 @@ wss.on('connection', (ws) => {
 - Pentru sisteme cu dialog complex, se poate extinde cu un manager de conversație
 - Biblioteca WebSocket (`ws`) oferă performanță ridicată și consum redus de resurse
 - Actualizările de rezervări pot fi optimizate pentru a trimite doar modificările, nu setul complet de date
-
-## Status Implementare
-
-> **NOTĂ IMPORTANTĂ:** Fișierul `server/index.js` nu a fost încă actualizat pentru a reflecta în totalitate arhitectura documentată aici. Acesta încă folosește implementarea veche și va trebui modificat pentru a alinia implementarea cu această documentație. Acest README descrie arhitectura finală țintă a sistemului, dar implementarea este încă în tranziție.
+- Separarea clară între inițializarea socketului și gestionarea conexiunilor oferă o mai bună modularitate și testabilitate

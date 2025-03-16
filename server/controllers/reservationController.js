@@ -1,6 +1,6 @@
 const Room = require("../models/Room");
 const Reservation = require("../models/Reservation");
-const { emitReservationsUpdate } = require("../socket/services/reservationService");
+const { emitReservationsUpdate } = require("../socket");
 
 const createReservation = async (req, res) => {
   try {

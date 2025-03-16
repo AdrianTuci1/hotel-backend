@@ -1,5 +1,4 @@
 const { processIntent } = require('../services/chatService');
-const { OUTGOING_MESSAGE_TYPES } = require('../utils/messageTypes');
 
 /**
  * Controller pentru gestionarea mesajelor de chat
@@ -11,12 +10,12 @@ const { OUTGOING_MESSAGE_TYPES } = require('../utils/messageTypes');
  * @param {string} message - Mesajul trimis de client
  */
 const handleMessage = async (socket, message) => {
-  console.log(`📩 Mesaj primit de la client ${socket.id}: "${message}"`);
+  console.log(`📩 Mesaj primit de la client: "${message}"`);
   
   try {
     // Definim funcția de trimitere a răspunsului
     const sendResponse = (response) => {
-      console.log(`✉️ Trimitere răspuns la client ${socket.id}:`, response);
+      console.log(`✉️ Trimitere răspuns la client:`, response);
       socket.emit("chat_response", response);
     };
     

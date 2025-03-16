@@ -22,18 +22,32 @@ const handleReservationIntent = (entities, extraIntents = [], sendResponse) => {
     return;
   }
 
-  const { roomNumber, startDate, endDate } = getEntityValues(entities);
+  // Extragem valorile entitățlor
+  const { startDate, endDate, fullName, roomType } = getEntityValues(entities);
+
+  let finalStartDate = startDate;
+  let finalEndDate = endDate;
+
+  // Setăm date implicite dacă nu sunt furnizate
+  if (!finalStartDate || !finalEndDate) {
+    const today = new Date();
+    finalStartDate = today.toISOString().split('T')[0]; // Format YYYY-MM-DD
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+    finalEndDate = tomorrow.toISOString().split('T')[0]; // Format YYYY-MM-DD
+  }
 
   // Procesăm datele și construim răspunsul
   const response = {
     intent: CHAT_INTENTS.RESERVATION,
     type: RESPONSE_TYPES.ACTION,
-    message: `Se deschide formularul pentru o rezervare nouă în camera ${roomNumber} de la ${startDate} până la ${endDate}`,
+    message: `Se deschide formularul pentru o rezervare nouă pentru ${fullName} de la ${finalStartDate} până la ${finalEndDate}`,
     extraIntents: extraIntents || [],
     reservation: {
-      roomNumber,
-      startDate,
-      endDate
+      fullName,
+      roomType,
+      startDate: finalStartDate,
+      endDate: finalEndDate
     }
   };
 
@@ -51,17 +65,9 @@ const checkMissingEntityReservation = (entities) => {
     return "Nu am putut identifica detaliile necesare pentru rezervare. Te rog să specifici camera și perioada.";
   }
 
-  if (!entities.roomNumber) {
-    return "Te rog să specifici numărul camerei pentru rezervare.";
-  }
-
-  // Verificăm dacă avem cel puțin startDate, sau ambele startDate și endDate
-  if (!entities.startDate) {
-    return "Te rog să specifici data de început pentru rezervare.";
-  }
-  
-  if (!entities.endDate) {
-    return "Te rog să specifici și data de sfârșit pentru rezervare.";
+  // Verificam structura pentru nume - poate fi fie string direct sau un obiect cu valoare
+  if(!entities.name) {
+    return "Te rog să specifici numele clientului pentru rezervare.";
   }
 
   return null;
@@ -73,11 +79,22 @@ const checkMissingEntityReservation = (entities) => {
  * @returns {Object} - Valorile extrase
  */
 const getEntityValues = (entities) => {
-  const roomNumber = entities.roomNumber?.value;
-  const startDate = entities.startDate?.value;
-  const endDate = entities.endDate?.value;
+  // Extragem numele, care poate fi fie un string direct, fie un obiect cu o proprietate value
+  const fullName = typeof entities.name === 'object' ? entities.name.value : entities.name;
   
-  return { roomNumber, startDate, endDate };
+  // Extragem tipul de cameră
+  const roomType = entities.roomType;
+  
+  // Extragem datele dacă există
+  let startDate = null;
+  let endDate = null;
+  
+  if (entities.dates && entities.dates.length > 0) {
+    startDate = entities.dates[0].startDate;
+    endDate = entities.dates[0].endDate;
+  }
+  
+  return { startDate, endDate, fullName, roomType };
 };
 
 module.exports = {

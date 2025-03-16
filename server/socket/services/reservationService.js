@@ -85,107 +85,60 @@ const getReservationByRoomAndDate = async (roomNumber, date) => {
   }
 };
 
-// 🔥 Funcție care trimite rezervările active prin WebSocket
-const emitReservationsUpdate = async () => {
-    try {
-      const activeReservations = await Reservation.findAll({
-        where: {
-          status: ["booked", "confirmed"]
-        },
-        attributes: [
-          "id",
-          "fullName",
-          "phone",
-          "email",
-          "startDate",
-          "endDate",
-          "status",
-          "rooms",
-          "isPaid",
-          "hasInvoice",
-          "hasReceipt",
-          "notes"
-        ]
-      });
-  
-      const formattedReservations = activeReservations.map(formatReservation);
-  
-      console.log("📡 Trimit rezervări actualizate prin WebSocket:", formattedReservations);
-  
-      const clients = getClients();
-      const message = JSON.stringify({ 
-        type: OUTGOING_MESSAGE_TYPES.RESERVATIONS_UPDATE,
-        action: 'sync',  // Indică o sincronizare completă a rezervărilor
-        reservations: formattedReservations 
-      });
-  
-      clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(message);
-        }
-      });
-    } catch (error) {
-      console.error("❌ Eroare la trimiterea rezervărilor prin WebSocket:", error);
-      throw error;
-    }
-  };
-  
-  
-  // 🔥 Obține toate rezervările active din baza de date
-  const getActiveReservations = async () => {
-    try {
-      const activeReservations = await Reservation.findAll({
-        where: {
-          status: ["booked", "confirmed"]
-        },
-        attributes: [
-          "id",
-          "fullName",
-          "phone",
-          "email",
-          "startDate",
-          "endDate",
-          "status",
-          "rooms",
-          "isPaid",
-          "hasInvoice",
-          "hasReceipt",
-          "notes"
-        ]
-      });
-  
-      return activeReservations.map(formatReservation);
-    } catch (error) {
-      console.error("❌ Eroare la obținerea rezervărilor active:", error);
-      throw error;
-    }
-  };
-  
-  // 🔥 Funcție care trimite mesajul de actualizare despre rezervări către clienți
-  const sendReservationsUpdateMessage = (clients, reservations, action = 'sync') => {
-    const message = JSON.stringify({ 
-      type: OUTGOING_MESSAGE_TYPES.RESERVATIONS_UPDATE,
-      action: action,  // 'sync' pentru sincronizare completă, 'init' pentru inițializare
-      reservations: reservations 
+// 🔥 Obține toate rezervările active din baza de date
+const getActiveReservations = async () => {
+  try {
+    const activeReservations = await Reservation.findAll({
+      where: {
+        status: ["booked", "confirmed"]
+      },
+      attributes: [
+        "id",
+        "fullName",
+        "phone",
+        "email",
+        "startDate",
+        "endDate",
+        "status",
+        "rooms",
+        "isPaid",
+        "hasInvoice",
+        "hasReceipt",
+        "notes"
+      ]
     });
-  
-    if (Array.isArray(clients)) {
-      // Trimite la mai mulți clienți
-      clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(message);
-        }
-      });
-    } else if (clients && clients.readyState === WebSocket.OPEN) {
-      // Trimite la un singur client
-      clients.send(message);
-    }
-  };
 
-  module.exports = {
-    formatReservation,
-    getReservationByRoomAndDate,
-    getActiveReservations,
-    emitReservationsUpdate,
-    sendReservationsUpdateMessage
+    return activeReservations.map(formatReservation);
+  } catch (error) {
+    console.error("❌ Eroare la obținerea rezervărilor active:", error);
+    throw error;
   }
+};
+
+// 🔥 Funcție care trimite mesajul de actualizare despre rezervări către clienți
+const sendReservationsUpdateMessage = (clients, reservations, action = 'sync') => {
+  const message = JSON.stringify({ 
+    type: OUTGOING_MESSAGE_TYPES.RESERVATIONS_UPDATE,
+    action: action,  // 'sync' pentru sincronizare completă, 'init' pentru inițializare
+    reservations: reservations 
+  });
+
+  if (Array.isArray(clients)) {
+    // Trimite la mai mulți clienți
+    clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  } else if (clients && clients.readyState === WebSocket.OPEN) {
+    // Trimite la un singur client
+    clients.send(message);
+  }
+};
+
+module.exports = {
+  formatReservation,
+  getReservationByRoomAndDate,
+  getActiveReservations,
+  sendReservationsUpdateMessage
+}

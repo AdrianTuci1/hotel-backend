@@ -23,7 +23,7 @@ const findReservationByRoomAndDate = async (entities, extraIntents = [], sendRes
   }
 
   // Verificăm dacă avem o dată
-  if (!entities.date && !entities.startDate) {
+  if (!entities.startDate) {
     sendResponse({
       intent: CHAT_INTENTS.MODIFY_RESERVATION,
       type: RESPONSE_TYPES.ERROR,
@@ -35,7 +35,7 @@ const findReservationByRoomAndDate = async (entities, extraIntents = [], sendRes
   }
 
   const roomNumber = entities.roomNumber.value;
-  const date = entities.date?.value || entities.startDate?.value;
+  const date = entities.startDate?.value;
 
   try {
     // Căutăm rezervarea în baza de date

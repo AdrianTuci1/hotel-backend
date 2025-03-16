@@ -1,5 +1,5 @@
-const { INCOMING_MESSAGE_TYPES, OUTGOING_MESSAGE_TYPES } = require('../utils/messageTypes');
-const { handleChatMessage } = require('../controllers/chatController');
+const { OUTGOING_MESSAGE_TYPES } = require('../utils/messageTypes');
+const { handleMessage } = require('../controllers/chatController');
 const { handleReservationAction } = require('../controllers/reservationController');
 const { handleAutomationAction } = require('../controllers/automationController');
 
@@ -20,26 +20,26 @@ const processMessage = async (ws, message) => {
 
     // Direcționăm mesajul către handler-ul corespunzător
     switch (parsedMessage.type) {
-      case INCOMING_MESSAGE_TYPES.CHAT_MESSAGE:
-        await handleChatMessage(ws, parsedMessage.content);
+      case "CHAT_MESSAGE":
+        await handleMessage(ws, parsedMessage.content);
         break;
 
-      case INCOMING_MESSAGE_TYPES.RESERVATION_ACTION:
+      case "RESERVATION_ACTION":
         if (!parsedMessage.action) {
           throw new Error("Mesajul nu conține o acțiune pentru rezervare");
         }
         await handleReservationAction(ws, parsedMessage.action, parsedMessage.data);
         break;
 
-      case INCOMING_MESSAGE_TYPES.AUTOMATION_ACTION:
+      case "AUTOMATION_ACTION":
         if (!parsedMessage.action) {
           throw new Error("Mesajul nu conține o acțiune pentru automatizare");
         }
         await handleAutomationAction(ws, parsedMessage.action);
         break;
 
-      case INCOMING_MESSAGE_TYPES.ROOM_ACTION:
-      case INCOMING_MESSAGE_TYPES.POS_ACTION:
+      case "ROOM_ACTION":
+      case "POS_ACTION":
         // Aceste tipuri pot fi implementate în viitor
         ws.send(JSON.stringify({
           type: OUTGOING_MESSAGE_TYPES.ERROR,
