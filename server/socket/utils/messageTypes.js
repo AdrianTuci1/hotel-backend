@@ -28,7 +28,6 @@ const CHAT_INTENTS = {
   // Camere
   CREATE_ROOM: 'create_room',
   MODIFY_ROOM: 'modify_room',
-  DELETE_ROOM: 'delete_room',
   
   // Rapoarte și Facturi
   SHOW_REPORTS: 'show_reports',
@@ -50,15 +49,11 @@ const CHAT_INTENTS = {
 
 // 📝 Tipuri de răspunsuri pentru chat
 const RESPONSE_TYPES = {
-  PHONE: 'phone',
-  FORM: 'form',
   CONFIRM: 'confirm',
-  LIST: 'list',
   POS: 'pos',
   ROOM: 'room',
   ERROR: 'error',
   ACTION: 'action',
-  OPTIONS: 'options',
   INFO: 'info'
 };
 

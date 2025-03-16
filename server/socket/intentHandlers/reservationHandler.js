@@ -40,7 +40,7 @@ const handleReservationIntent = (entities, extraIntents = [], sendResponse) => {
   // Procesăm datele și construim răspunsul
   const response = {
     intent: CHAT_INTENTS.RESERVATION,
-    type: RESPONSE_TYPES.ACTION,
+    type: RESPONSE_TYPES.INFO,
     message: `Se deschide formularul pentru o rezervare nouă pentru ${fullName} de la ${finalStartDate} până la ${finalEndDate}`,
     extraIntents: extraIntents || [],
     reservation: {

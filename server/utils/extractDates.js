@@ -12,7 +12,10 @@ const datePatterns = [
   /\b(\d{1,2})[.](\d{1,2})(?:[.](\d{4}))?(?:[-\s](?:pana|pana la|la)[-\s])?(\d{1,2})[.](\d{1,2})(?:[.](\d{4}))?\b/g,
   
   // Format: pentru 3 nopti
-  /\b(?:pentru|timp de)[-\s](\d{1,2})[-\s]?(?:nopti|zile)\b/gi
+  /\b(?:pentru|timp de)[-\s](\d{1,2})[-\s]?(?:nopti|zile)\b/gi,
+  
+  // Format: O singură dată cu lună text (ex: 24 decembrie, 24 dec)
+  /\b(\d{1,2})[-\s](ianuarie|februarie|martie|aprilie|mai|iunie|iulie|august|septembrie|octombrie|noiembrie|decembrie|ian|feb|mar|apr|iun|iul|aug|sep|oct|nov|dec)(?:\s(\d{4}))?\b/gi
 ];
 
 const monthMap = {
@@ -71,13 +74,18 @@ const extractDates = (message) => {
             const endMonth = match[5];
             const endYear = match[6] || startYear;
             endDate = createDate(endDay, endMonth, endYear);
+          } else {
+            // Pentru o singură dată, adăugăm automat ziua următoare ca dată de sfârșit
+            endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 1);
           }
         } else {
           // Format cu lună text
           const startDay = match[1];
           
-          if (match[2] && monthMap[match[3]]) {
-            // Format: DD-DD Month
+          // Verificăm dacă avem un format de interval sau o singură dată
+          if (match[2] && match[3] && !monthMap[match[3]]) {
+            // Format: DD-DD Month (interval in aceeași lună)
             const endDay = match[2];
             const month = monthMap[match[3]];
             
@@ -89,7 +97,7 @@ const extractDates = (message) => {
               endDate.setMonth(endDate.getMonth() + 1);
             }
           } else if (monthMap[match[2]] && match[3] && monthMap[match[4]]) {
-            // Format: DD Month - DD Month
+            // Format: DD Month - DD Month (interval în luni diferite)
             const startMonth = monthMap[match[2]];
             const endDay = match[3];
             const endMonth = monthMap[match[4]];
@@ -101,6 +109,16 @@ const extractDates = (message) => {
             if (endDate < startDate && endMonth <= startMonth) {
               endDate.setFullYear(endDate.getFullYear() + 1);
             }
+          } else if (monthMap[match[2]]) {
+            // Format: O singură dată (ex: 24 decembrie)
+            const month = monthMap[match[2]];
+            const year = match[3] || today.getFullYear();
+            
+            startDate = createDate(startDay, month, year);
+            
+            // Pentru o singură dată, adăugăm automat ziua următoare ca dată de sfârșit
+            endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + 1);
           }
         }
 

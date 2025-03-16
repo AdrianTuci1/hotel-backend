@@ -23,7 +23,7 @@ const findReservationByRoomAndDate = async (entities, extraIntents = [], sendRes
   }
 
   // Verificăm dacă avem o dată
-  if (!entities.startDate) {
+  if (!entities.dates[0].startDate) {
     sendResponse({
       intent: CHAT_INTENTS.MODIFY_RESERVATION,
       type: RESPONSE_TYPES.ERROR,
@@ -35,7 +35,7 @@ const findReservationByRoomAndDate = async (entities, extraIntents = [], sendRes
   }
 
   const roomNumber = entities.roomNumber.value;
-  const date = entities.startDate?.value;
+  const date = entities.dates.startDate?.value;
 
   try {
     // Căutăm rezervarea în baza de date
@@ -45,7 +45,7 @@ const findReservationByRoomAndDate = async (entities, extraIntents = [], sendRes
       // Am găsit rezervarea - construim răspunsul pentru deschiderea rezervării existente
       sendResponse({
         intent: CHAT_INTENTS.MODIFY_RESERVATION,
-        type: RESPONSE_TYPES.ACTION,
+        type: RESPONSE_TYPES.INFO,
         message: `Am găsit rezervarea pentru camera ${roomNumber}. Se deschide formularul pentru modificare.`,
         reservation: {
           id: reservation.id,
