@@ -1,79 +1,109 @@
-# Socket Module
+# Socket Module - Hotel Management System
 
-## Overview
-This module handles real-time communication between the server and clients using WebSockets. It follows a clear modular architecture with separation of concerns:
+Acest modul implementează funcționalitățile de WebSocket pentru comunicarea în timp real între server și clienți în aplicația de management hotelier.
 
-- **Actions**: Handle incoming socket events and route them to appropriate controllers
-- **Controllers**: Process specific types of client requests and coordinate with services
-- **Services**: Implement the business logic
-- **Utils**: Provide shared constants and utility functions
-
-## Directory Structure
+## Structura directorului
 
 ```
-/socket
-├── actions/
-│   ├── actionHandler.js        # Routes incoming messages to appropriate controllers
-│   └── connectionHandler.js    # Manages WebSocket connections
-├── controllers/
-│   ├── automationController.js # Controls automation-related actions
-│   ├── chatController.js       # Controls chat-related actions
-│   └── reservationController.js # Controls reservation-related actions
-├── services/
-│   ├── automationService.js    # Business logic for automations
-│   ├── chatService.js          # Business logic for chat interactions
-│   └── reservationService.js   # Business logic for reservations
-├── utils/
-│   └── messageTypes.js         # Contains message type constants
-├── index.js                    # Main export file
-├── README.md                   # Documentation
-└── webSocket.js                # WebSocket initialization
+socket/
+├── actions/                 # Handlere pentru acțiuni și conexiuni
+│   ├── actionHandler.js     # Procesează acțiunile primite de la clienți
+│   └── connectionHandler.js # Gestionează conexiunile de WebSocket
+├── controllers/             # Logica de business pentru diferite funcționalități
+│   ├── automationController.js  # Controlează funcționalitățile de automatizare
+│   ├── chatController.js        # Gestionează mesajele de chat
+│   └── reservationController.js # Gestionează operațiile cu rezervări
+├── intentHandlers/          # Handlere pentru intenții detectate prin NLP
+│   ├── defaultHandler.js        # Handler pentru intenții necunoscute
+│   ├── index.js                 # Punctul central pentru toate handlerele de intenții
+│   ├── modifyReservationHandler.js  # Modificări de rezervări
+│   ├── phoneHandler.js          # Procesează intenții legate de numere de telefon
+│   ├── posHandler.js            # Procesează intenții legate de POS
+│   ├── reservationHandler.js    # Procesează intenții pentru rezervări noi
+│   └── roomHandler.js           # Procesează intenții legate de camere
+├── services/                # Servicii reutilizabile pentru funcționalități WebSocket
+│   ├── automationService.js     # Serviciu pentru automatizări
+│   └── chatService.js           # Serviciu pentru funcționalități de chat
+├── utils/                   # Utilități și constante
+│   └── messageTypes.js      # Definește tipurile de mesaje utilizate în comunicare
+├── index.js                 # Punctul de intrare principal care expune API-ul modulului
+└── webSocket.js             # Configurare core a serverului WebSocket
 ```
 
-## Flow of Messages
+## Descrierea componentelor principale
 
-1. Client sends a WebSocket message
-2. `connectionHandler.js` receives the message and passes it to `actionHandler.js`
-3. `actionHandler.js` parses the message and routes it to the appropriate controller
-4. Controller calls one or more services to perform business logic
-5. Services perform the requested operations and return results
-6. Controller formats the response and sends it back to the client
+### index.js
+Punctul central de acces la modulul de socket care expune toate funcționalitățile și constantele necesare pentru a fi utilizate de restul aplicației.
 
-## Message Types
+### webSocket.js
+Configurează și inițializează serverul WebSocket, oferind funcționalități de bază pentru gestionarea conexiunilor și notificări.
 
-The system supports several types of messages, all defined in `utils/messageTypes.js`:
+### actions/
+Conține logica de procesare a mesajelor și conexiunilor primite prin WebSocket:
+- **connectionHandler.js**: Gestionează ciclul de viață al conexiunilor (conectare, deconectare, tracking)
+- **actionHandler.js**: Direcționează mesajele primite către handlerii corespunzători
 
-- **Chat Messages**: Natural language interactions with the system
-- **Reservation Actions**: CRUD operations for reservations
-- **Room Actions**: CRUD operations for rooms
-- **POS Actions**: Point of sale operations
-- **Automation Actions**: Automated processes like email checking
+### controllers/
+Implementează logica de business pentru diferite zone funcționale:
+- **chatController.js**: Procesează și răspunde la mesajele de chat
+- **reservationController.js**: Gestionează operațiunile cu rezervările (creare, modificare, ștergere)
+- **automationController.js**: Implementează funcționalități automate (procesare comenzi, notificări)
 
-## Adding New Functionality
+### intentHandlers/
+Procesează intențiile utilizatorilor detectate prin NLP:
+- **index.js**: Direcționează intențiile către handlerii specifici
+- **roomHandler.js**: Procesează intenții legate de camere și ocupare
+- **reservationHandler.js**: Procesează intenții pentru crearea rezervărilor
+- **modifyReservationHandler.js**: Gestionează modificările de rezervări
+- **phoneHandler.js**: Procesează intenții legate de numere de telefon
+- **posHandler.js**: Procesează intenții legate de puncte de vânzare
+- **defaultHandler.js**: Handler implicit pentru intenții nerecunoscute
 
-To add a new feature:
+### services/
+Servicii reutilizabile pentru diferite componente:
+- **chatService.js**: Funcționalități legate de procesarea mesajelor
+- **automationService.js**: Servicii pentru automatizarea proceselor hoteliere
 
-1. Define new message types in `utils/messageTypes.js`
-2. Implement the business logic in a service
-3. Create a controller to handle the actions
-4. Register the controller in `actionHandler.js`
+### utils/
+Utilități, constante și tipuri de date:
+- **messageTypes.js**: Definește constantele pentru tipurile de mesaje suportate
 
-## Example Usage
+## Utilizare
+
+Modulul de socket poate fi importat și utilizat în aplicație astfel:
 
 ```javascript
-// In server code
-const { initSocket } = require('./socket');
+const socketModule = require('./socket');
 
-// Initialize WebSocket when HTTP server is started
-const server = http.createServer(app);
-const wss = initSocket();
+// Inițializează serverul WebSocket
+const wss = socketModule.initSocket();
 
-// Attach WebSocket server to HTTP server
-server.on('upgrade', (request, socket, head) => {
-  if (request.url === '/api/chat') {
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, request);
-    });
-  }
-});
-``` 
+// Notifică toți clienții despre o schimbare în rezervări
+socketModule.notifyReservationChange();
+
+// Accesează lista de clienți conectați
+const clients = socketModule.getClients();
+
+// Utilizează constantele pentru tipurile de mesaje
+const { messageTypes } = socketModule;
+```
+
+## Flow de date
+
+1. Un client se conectează la server prin WebSocket
+2. Conexiunea este gestionată de `connectionHandler.js`
+3. Mesajele de la client sunt procesate inițial de `actionHandler.js`
+4. În funcție de tipul mesajului, este delegat către controllerul corespunzător
+5. Pentru mesajele de chat, `chatController.js` analizează textul și determină intenția
+6. Intenția este procesată de handlerul potrivit din directorul `intentHandlers/`
+7. Răspunsul este trimis înapoi clientului prin conexiunea WebSocket
+
+## Extindere
+
+Pentru a adăuga noi funcționalități:
+
+1. Adaugă noi tipuri de mesaje în `utils/messageTypes.js`
+2. Implementează noi controllere în directorul `controllers/` pentru logica specifică
+3. Adaugă noi handlere de intenții în `intentHandlers/` pentru funcționalități specifice NLP
+4. Actualizează `actions/actionHandler.js` pentru a direcționa mesajele către noile controllere
+5. Exportă noile funcționalități prin `index.js` 

@@ -1,7 +1,7 @@
 const classifier = require("./classifier");
 const extractEntities = require("./extractEntities");
 const intentMessages = require("./intentMessages");
-const { CHAT_INTENTS } = require("../socket/messageTypes");
+const { CHAT_INTENTS } = require("../socket/utils/messageTypes");
 
 // 🔹 Dictionar rapid de rutare
 const quickRoute = {

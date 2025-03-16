@@ -4,6 +4,7 @@ const { emitReservationsUpdate } = require("./controllers/reservationController"
 
 /**
  * Modul principal WebSocket pentru server
+ * Gestionează inițializarea și operațiile globale ale serverului WebSocket
  */
 
 // Inițializează serverul WebSocket

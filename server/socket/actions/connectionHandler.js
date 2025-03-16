@@ -1,5 +1,5 @@
 const { processMessage } = require('./actionHandler');
-const { sendActiveReservations } = require('../controllers/reservationController');
+const { sendActiveReservationsToClient } = require('../controllers/reservationController');
 const { setupAutomationChecks } = require('../controllers/automationController');
 
 /**
@@ -23,7 +23,7 @@ const handleConnection = (ws) => {
   ws.getClients = getClients;
 
   // Trimitem rezervările active la clientul conectat
-  sendActiveReservations(ws);
+  sendActiveReservationsToClient(ws);
 
   // Configurăm verificările automate pentru acest client
   const intervals = setupAutomationChecks(ws);
