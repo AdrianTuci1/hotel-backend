@@ -1,19 +1,25 @@
-const { RESPONSE_TYPES } = require("../utils/messageTypes");
+const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
 
 /**
- * Handler pentru cazul în care nu există o intenție specifică sau aceasta nu este clară
+ * Handler pentru intenții nerecunoscute sau când nu există un handler specific
  * @param {Object} entities - Entitățile extrase din mesaj
  * @param {Array} extraIntents - Intențiile adiționale detectate
- * @returns {Object} - Răspunsul formatat
+ * @param {Function} sendResponse - Funcția de callback pentru trimiterea răspunsului
  */
-const handleDefaultIntent = (entities, extraIntents = []) => {
-  return {
-    type: RESPONSE_TYPES.OPTIONS,
-    entities,
+const handleDefaultIntent = (entities, extraIntents = [], sendResponse) => {
+  console.log('❓ Handler default apelat cu entități:', entities);
+  
+  // Procesăm datele și construim răspunsul
+  const response = {
+    intent: CHAT_INTENTS.DEFAULT,
+    type: RESPONSE_TYPES.MESSAGE,
+    message: "Îmi pare rău, dar nu am înțeles exact ce doriți să faceți. Vă pot ajuta cu rezervări, vizualizarea calendarului, rapoarte sau stocuri.",
     extraIntents: extraIntents || [],
-    title: "Cum vă pot ajuta?",
-    message: "Nu am înțeles exact ce doriți. Vă pot ajuta cu una din următoarele opțiuni:"
+    reservation: null
   };
+  
+  // Trimitem răspunsul prin callback
+  sendResponse(response);
 };
 
 module.exports = {

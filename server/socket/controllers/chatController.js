@@ -1,29 +1,37 @@
-const { processMessage } = require('../services/chatService');
+const { processIntent } = require('../services/chatService');
 const { OUTGOING_MESSAGE_TYPES } = require('../utils/messageTypes');
 
 /**
- * Controller pentru manipularea mesajelor de chat
+ * Controller pentru gestionarea mesajelor de chat
  */
 
-// Procesează mesajul primit de la client și returnează un răspuns
-const handleChatMessage = async (ws, content) => {
+/**
+ * Gestionează un mesaj primit de la client
+ * @param {Object} socket - Socketul clientului
+ * @param {string} message - Mesajul trimis de client
+ */
+const handleMessage = async (socket, message) => {
+  console.log(`📩 Mesaj primit de la client ${socket.id}: "${message}"`);
+  
   try {
-    console.log("💬 Manipulare mesaj chat:", content);
-    const response = await processMessage(content);
+    // Definim funcția de trimitere a răspunsului
+    const sendResponse = (response) => {
+      console.log(`✉️ Trimitere răspuns la client ${socket.id}:`, response);
+      socket.emit("chat_response", response);
+    };
     
-    ws.send(JSON.stringify({ 
-      type: OUTGOING_MESSAGE_TYPES.CHAT_RESPONSE, 
-      response 
-    }));
+    // Procesăm intenția și trimitem răspunsul prin callback
+    await processIntent(message, sendResponse);
   } catch (error) {
-    console.error("❌ Eroare la manipularea mesajului de chat:", error);
-    ws.send(JSON.stringify({ 
-      type: OUTGOING_MESSAGE_TYPES.ERROR, 
-      message: "A apărut o eroare la procesarea mesajului de chat" 
-    }));
+    console.error("❌ Eroare în handleMessage:", error);
+    // Trimitem un mesaj de eroare
+    socket.emit("chat_response", {
+      type: "error",
+      message: "A apărut o eroare la procesarea mesajului."
+    });
   }
 };
 
 module.exports = {
-  handleChatMessage
+  handleMessage
 }; 

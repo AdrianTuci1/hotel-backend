@@ -1,30 +1,61 @@
-const { analyzeMessage } = require("../../nlp/nlpService");
-const { processIntent } = require("../intentHandlers");
-const { RESPONSE_TYPES } = require("../utils/messageTypes");
+const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
+const nlpService = require("../../nlp/nlpService");
+const { getIntentHandler } = require("../intentHandlers");
 
 /**
- * Service pentru procesarea mesajelor de chat
+ * Procesează un mesaj de chat și returnează răspunsul potrivit
+ * Acum, în loc să returneze direct răspunsul, va apela handlerul care va gestiona trimiterea
+ * 
+ * @param {string} message - Mesajul de procesat
+ * @param {Function} sendResponse - Funcția de callback pentru trimiterea răspunsului
  */
-
-// Procesează un mesaj de chat și returnează un răspuns adecvat
-const processMessage = async (message) => {
+const processIntent = async (message, sendResponse) => {
+  console.log(`🔍 Procesare mesaj: "${message}"`);
+  
   try {
-    console.log("📩 Procesare mesaj:", message);
-    const { intent, entities, extraIntents } = await analyzeMessage(message);
-
-    // Delegăm procesarea către handler-ul corespunzător
-    const response = await processIntent(intent, entities, extraIntents);
+    // Apelăm serviciul NLP pentru a obține intenția și entitățile
+    const { intent, entities, extraIntents } = await nlpService.classifyMessage(message);
+    console.log(`📋 Intent detectat: ${intent}, entități:`, entities);
     
-    return response;
+    // Verificăm dacă avem un handler pentru intenția detectată
+    const handler = getIntentHandler(intent);
+    
+    if (!handler) {
+      console.warn(`⚠️ Nu există handler pentru intenția: ${intent}`);
+      // Trimitem un răspuns de eroare
+      sendResponse({
+        intent: CHAT_INTENTS.DEFAULT,
+        type: RESPONSE_TYPES.ERROR,
+        message: "Nu pot procesa acest tip de cerere momentan.",
+        extraIntents: [],
+        reservation: null
+      });
+      return;
+    }
+    
+    console.log(`🚀 Executare handler pentru intenția: ${intent}`);
+    
+    // Validăm entitățile și extraIntents pentru a evita erori
+    const validEntities = entities || {};
+    const validExtraIntents = Array.isArray(extraIntents) ? extraIntents : [];
+    
+    // Apelăm handlerul cu entitățile, extraIntents și callback-ul pentru răspuns
+    // Handlerul va apela sendResponse când va fi gata
+    await handler(validEntities, validExtraIntents, sendResponse);
+    
   } catch (error) {
-    console.error("❌ Eroare la procesarea mesajului de chat:", error);
-    return {
+    console.error(`❌ Eroare la procesarea intenției: ${error.message}`, error);
+    // Trimitem un răspuns de eroare
+    sendResponse({
+      intent: CHAT_INTENTS.DEFAULT,
       type: RESPONSE_TYPES.ERROR,
-      message: "A apărut o eroare la procesarea mesajului. Vă rugăm încercați din nou."
-    };
+      message: `A apărut o eroare: ${error.message}`,
+      extraIntents: [],
+      reservation: null
+    });
   }
 };
 
 module.exports = {
-  processMessage
+  processIntent
 }; 

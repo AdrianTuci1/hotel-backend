@@ -1,103 +1,79 @@
 const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
-const Reservation = require("../../models/Reservation");
-const { Op } = require("sequelize");
+const { getReservationByRoomAndDate } = require("../services/reservationService");
 
 /**
- * Funcție utilitară internă pentru a găsi o rezervare după numărul camerei și dată
- * @param {number} roomNumber - Numărul camerei
- * @param {string|Date} date - Data pentru care căutăm rezervarea
- * @returns {Promise<Object|null>} - Rezervarea găsită sau null
- * @private
- */
-const _findReservationByRoomAndDate = async (roomNumber, date) => {
-  try {
-    // Căutăm rezervările care acoperă data specificată
-    const reservations = await Reservation.findAll({
-      where: {
-        status: ["booked", "confirmed"],
-        startDate: { [Op.lte]: date },
-        endDate: { [Op.gte]: date }
-      }
-    });
-
-    // Filtrăm rezervările care conțin camera specificată
-    const targetReservation = reservations.find(reservation => {
-      const rooms = Array.isArray(reservation.rooms) ? reservation.rooms : [];
-      return rooms.some(room => room.roomNumber === roomNumber);
-    });
-
-    return targetReservation || null;
-  } catch (error) {
-    console.error("❌ Eroare la găsirea rezervării:", error);
-    throw error;
-  }
-};
-
-/**
- * Găsește o rezervare după numărul camerei și data și returnează un răspuns formatat
- * Această funcție este folosită doar pentru a deschide o rezervare existentă
+ * Găsește o rezervare existentă pentru o anumită cameră și dată (pentru a o deschide)
  * @param {Object} entities - Entitățile extrase din mesaj
  * @param {Array} extraIntents - Intențiile adiționale detectate
- * @returns {Promise<Object>} - Răspunsul formatat
+ * @param {Function} sendResponse - Funcția de callback pentru trimiterea răspunsului
  */
-const findReservationByRoomAndDate = async (entities = {}, extraIntents = []) => {
-  // Intent-ul este mereu MODIFY_RESERVATION
-  const intent = CHAT_INTENTS.MODIFY_RESERVATION;
+const findReservationByRoomAndDate = async (entities, extraIntents = [], sendResponse) => {
+  console.log('🔍 Căutare rezervare existentă cu entități:', entities);
   
-  // Pregătim array-ul de extraIntents
-  const finalExtraIntents = extraIntents || ["show_calendar"];
-  
-  // Verificăm dacă avem numărul camerei și data necesare
-  if (!entities.roomNumber || (!entities.date && !entities.startDate)) {
-    // Nu avem suficiente informații pentru a căuta o rezervare
-    return {
-      intent,
-      type: RESPONSE_TYPES.FORM,
-      message: "Pentru a deschide o rezervare, vă rog să specificați numărul camerei și data.",
-      extraIntents: finalExtraIntents,
-      reservation: null
-    };
-  }
-  
-  try {
-    const roomNumber = parseInt(entities.roomNumber);
-    const date = entities.date || entities.startDate;
-    
-    // Folosim funcția utilitară internă pentru a găsi rezervarea
-    const reservation = await _findReservationByRoomAndDate(roomNumber, date);
-    
-    if (!reservation) {
-      // Rezervare negăsită
-      return {
-        intent,
-        type: RESPONSE_TYPES.ERROR,
-        message: `Nu am găsit nicio rezervare pentru camera ${roomNumber} la data ${date}.`,
-        extraIntents: finalExtraIntents,
-        reservation: null
-      };
-    }
-    
-    // Rezervare găsită - pregătim răspunsul simplu
-    return {
-      intent,
-      type: RESPONSE_TYPES.FORM,
-      message: `📅 Am găsit rezervarea pentru camera ${roomNumber} în perioada ${reservation.startDate} - ${reservation.endDate}.`,
-      reservation: {
-        id: reservation.id,
-        startDate: reservation.startDate,
-        endDate: reservation.endDate
-      },
-      extraIntents: finalExtraIntents
-    };
-  } catch (error) {
-    console.error("❌ Eroare la găsirea rezervării:", error);
-    return {
-      intent,
+  // Verificăm dacă avem numărul camerei
+  if (!entities.roomNumber) {
+    sendResponse({
+      intent: CHAT_INTENTS.MODIFY_RESERVATION,
       type: RESPONSE_TYPES.ERROR,
-      message: "A apărut o problemă la căutarea rezervării.",
-      extraIntents: finalExtraIntents,
+      message: "Te rog să specifici numărul camerei pentru a găsi rezervarea.",
+      extraIntents: extraIntents || [],
       reservation: null
-    };
+    });
+    return;
+  }
+
+  // Verificăm dacă avem o dată
+  if (!entities.date && !entities.startDate) {
+    sendResponse({
+      intent: CHAT_INTENTS.MODIFY_RESERVATION,
+      type: RESPONSE_TYPES.ERROR,
+      message: "Te rog să specifici data pentru a găsi rezervarea.",
+      extraIntents: extraIntents || [],
+      reservation: null
+    });
+    return;
+  }
+
+  const roomNumber = entities.roomNumber.value;
+  const date = entities.date?.value || entities.startDate?.value;
+
+  try {
+    // Căutăm rezervarea în baza de date
+    const reservation = await getReservationByRoomAndDate(roomNumber, date);
+
+    if (reservation) {
+      // Am găsit rezervarea - construim răspunsul pentru deschiderea rezervării existente
+      sendResponse({
+        intent: CHAT_INTENTS.MODIFY_RESERVATION,
+        type: RESPONSE_TYPES.ACTION,
+        message: `Am găsit rezervarea pentru camera ${roomNumber}. Se deschide formularul pentru modificare.`,
+        reservation: {
+          id: reservation.id,
+          startDate: reservation.startDate,
+          endDate: reservation.endDate
+        },
+        extraIntents: extraIntents || []
+      });
+    } else {
+      // Nu am găsit rezervarea - trimitem un mesaj de eroare
+      sendResponse({
+        intent: CHAT_INTENTS.MODIFY_RESERVATION,
+        type: RESPONSE_TYPES.ERROR,
+        message: `Nu am găsit nicio rezervare pentru camera ${roomNumber} în data de ${date}.`,
+        extraIntents: extraIntents || [],
+        reservation: null
+      });
+    }
+  } catch (error) {
+    console.error("❌ Eroare la căutarea rezervării:", error);
+    // Eroare la căutarea în baza de date - trimitem un mesaj de eroare
+    sendResponse({
+      intent: CHAT_INTENTS.MODIFY_RESERVATION,
+      type: RESPONSE_TYPES.ERROR,
+      message: `A apărut o eroare la căutarea rezervării: ${error.message}`,
+      extraIntents: extraIntents || [],
+      reservation: null
+    });
   }
 };
 

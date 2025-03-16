@@ -1,6 +1,7 @@
 const WebSocket = require('ws');
 const { Reservation } = require('../../models');
 const { OUTGOING_MESSAGE_TYPES } = require('../utils/messageTypes');
+const { Op } = require('sequelize');
 
 /**
  * Service pentru manipularea și distribuirea informațiilor despre rezervări
@@ -31,7 +32,60 @@ const formatReservation = (reservation) => ({
     notes: reservation.notes
   });
 
-  // 🔥 Funcție care trimite rezervările active prin WebSocket
+/**
+ * Găsește o rezervare după numărul camerei și dată
+ * @param {number|string} roomNumber - Numărul camerei căutate
+ * @param {string|Date} date - Data pentru care se caută rezervarea
+ * @returns {Promise<Object|null>} - Rezervarea găsită sau null dacă nu există
+ */
+const getReservationByRoomAndDate = async (roomNumber, date) => {
+  try {
+    console.log(`🔍 Caută rezervare pentru camera ${roomNumber} la data ${date}`);
+    
+    // Convertim date la obiect Date dacă este string
+    const searchDate = new Date(date);
+    
+    // Verificăm dacă data este validă
+    if (isNaN(searchDate.getTime())) {
+      console.error('❌ Data furnizată este invalidă:', date);
+      return null;
+    }
+
+    // Căutăm rezervări care acoperă data specificată
+    const reservations = await Reservation.findAll({
+      where: {
+        status: ["booked", "confirmed"],
+        startDate: { [Op.lte]: searchDate },
+        endDate: { [Op.gte]: searchDate }
+      }
+    });
+
+    // Dacă nu găsim nicio rezervare pentru această perioadă
+    if (!reservations || reservations.length === 0) {
+      console.log(`❌ Nicio rezervare găsită pentru data ${date}`);
+      return null;
+    }
+
+    // Căutăm rezervarea care conține camera specificată
+    const targetReservation = reservations.find(reservation => {
+      const rooms = Array.isArray(reservation.rooms) ? reservation.rooms : [];
+      return rooms.some(room => String(room.roomNumber) === String(roomNumber));
+    });
+
+    if (targetReservation) {
+      console.log(`✅ Rezervare găsită pentru camera ${roomNumber} la data ${date}:`, targetReservation.id);
+      return formatReservation(targetReservation);
+    } else {
+      console.log(`❌ Nicio rezervare pentru camera ${roomNumber} la data ${date}`);
+      return null;
+    }
+  } catch (error) {
+    console.error(`❌ Eroare la căutarea rezervării pentru camera ${roomNumber} la data ${date}:`, error);
+    return null;
+  }
+};
+
+// 🔥 Funcție care trimite rezervările active prin WebSocket
 const emitReservationsUpdate = async () => {
     try {
       const activeReservations = await Reservation.findAll({
@@ -130,6 +184,7 @@ const emitReservationsUpdate = async () => {
 
   module.exports = {
     formatReservation,
+    getReservationByRoomAndDate,
     getActiveReservations,
     emitReservationsUpdate,
     sendReservationsUpdateMessage

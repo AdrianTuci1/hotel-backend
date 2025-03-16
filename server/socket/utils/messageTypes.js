@@ -44,7 +44,8 @@ const CHAT_INTENTS = {
   SHOW_STOCK: 'show_stock',
   
   // Altele
-  UNKNOWN: 'unknown_intent'
+  UNKNOWN: 'unknown_intent',
+  DEFAULT: 'default'
 };
 
 // 📝 Tipuri de răspunsuri pentru chat
@@ -54,8 +55,11 @@ const RESPONSE_TYPES = {
   CONFIRM: 'confirm',
   LIST: 'list',
   POS: 'pos',
-  ROOM:'room',
-  ERROR: 'error'
+  ROOM: 'room',
+  ERROR: 'error',
+  ACTION: 'action',
+  OPTIONS: 'options',
+  INFO: 'info'
 };
 
 // 🔄 Tipuri de acțiuni pentru rezervări
