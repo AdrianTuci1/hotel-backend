@@ -49,10 +49,12 @@ const CHAT_INTENTS = {
 
 // 📝 Tipuri de răspunsuri pentru chat
 const RESPONSE_TYPES = {
-  OPTIONS: 'options',
+  PHONE: 'phone',
   FORM: 'form',
   CONFIRM: 'confirm',
   LIST: 'list',
+  POS: 'pos',
+  ROOM:'room',
   ERROR: 'error'
 };
 

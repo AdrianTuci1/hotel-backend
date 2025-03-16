@@ -5,6 +5,9 @@ const tokenizer = new natural.WordTokenizer();
 // Regex-uri îmbunătățite
 const roomTypeRegex = /\b(single|dubla|twin|apartament|deluxe|superioara|standard)\b/i;
 const preferencesRegex = /\b(fumator|nefumator|vedere la mare|etaj superior|parcare inclusa|pat suplimentar|mic dejun inclus)\b/i;
+// Adăugăm regex pentru numere de cameră și telefon
+const roomNumberRegex = /\b(?:camera|cam\.?|c\.?|nr\.?)\s*(?:de|cu|numar|număr)?\s*(\d{1,4})\b|\b(\d{1,4})\s*(?:camera|cam\.?)\b|\bc(\d{1,4})\b|\b(\d{3})\b/i;
+const phoneNumberRegex = /\b(?:telefon|tel\.?|numar|număr|nr\.?)?:?\s*((?:\+?4?0|0)?[ \-\.]?(?:7[0-9]{2}|7[0-9]{8}|[0-9]{2}[ \-\.]?[0-9]{3}[ \-\.]?[0-9]{3}|[0-9]{3}[ \-\.]?[0-9]{3}[ \-\.]?[0-9]{3}))\b/i;
 
 // Lista de cuvinte care nu pot fi nume
 const nonNameWords = new Set([
@@ -12,8 +15,8 @@ const nonNameWords = new Set([
   'single', 'dubla', 'twin', 'apartament', 'deluxe', 'superioara', 'standard',
   'fumator', 'nefumator', 'vedere', 'mare', 'etaj', 'superior', 'parcare',
   'inclusa', 'inclus', 'pat', 'suplimentar', 'mic', 'dejun',
-  'zile', 'nopti', 'pana', 'intre', 'perioada', 'data', 'mar', 'apr', 'iun', 'iul', 'aug', 'sep', 'oct', 'nov', 'dec',
-]);
+  'zile', 'nopti', 'pana', 'intre', 'perioada', 'data', 'mar', 'apr', 'iun', 'iul', 'aug', 'sep', 'oct', 'nov', 'dec', 
+  'ianuarie', 'februarie', 'martie', 'aprilie', 'mai','iunie','iulie','august','septembrie','octombrie','noiembrie','decembrie']);
 
 const normalizeText = (text) => {
   // Convertim la lowercase și eliminăm diacriticele
@@ -64,6 +67,24 @@ const extractName = (message, roomType) => {
   return name;
 };
 
+const extractRoomNumber = (message) => {
+  const match = message.match(roomNumberRegex);
+  if (match) {
+    // Verificăm grupele de captură în ordinea priorității și returnăm prima valoare găsită non-null
+    return match[1] || match[2] || match[3] || match[4];
+  }
+  return null;
+};
+
+const extractPhoneNumber = (message) => {
+  const match = message.match(phoneNumberRegex);
+  if (match && match[1]) {
+    // Formatăm numărul de telefon pentru a elimina spațiile și alte caractere
+    return match[1].replace(/[\s\-\.]/g, '');
+  }
+  return null;
+};
+
 const extractEntities = (message) => {
   const normalizedMessage = normalizeText(message);
   let entities = {};
@@ -83,6 +104,14 @@ const extractEntities = (message) => {
   // Extragem preferințele
   const preferencesMatch = normalizedMessage.match(preferencesRegex);
   if (preferencesMatch) entities.preferences = preferencesMatch[0].toLowerCase();
+
+  // Extragem numărul camerei
+  const roomNumber = extractRoomNumber(message);
+  if (roomNumber) entities.roomNumber = roomNumber;
+
+  // Extragem numărul de telefon
+  const phoneNumber = extractPhoneNumber(message);
+  if (phoneNumber) entities.phoneNumber = phoneNumber;
 
   return entities;
 };
