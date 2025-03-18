@@ -23,7 +23,7 @@ const findReservationByRoomAndDate = async (entities, extraIntents = [], sendRes
   }
 
   // Verificăm dacă avem o dată
-  if (!entities.dates[0].startDate) {
+  if (!entities.dates || !entities.dates.length || !entities.dates[0].startDate) {
     sendResponse({
       intent: CHAT_INTENTS.MODIFY_RESERVATION,
       type: RESPONSE_TYPES.ERROR,
@@ -34,21 +34,44 @@ const findReservationByRoomAndDate = async (entities, extraIntents = [], sendRes
     return;
   }
 
-  const roomNumber = entities.roomNumber.value;
-  const date = entities.dates.startDate?.value;
+  // Extragem corect numărul camerei - poate fi direct string sau obiect cu proprietatea value
+  const roomNumber = typeof entities.roomNumber === 'object' && entities.roomNumber.value 
+    ? entities.roomNumber.value 
+    : entities.roomNumber;
+
+  // Extragem corect data - poate fi direct string sau obiect cu proprietatea value
+  const date = entities.dates[0].startDate.value || entities.dates[0].startDate;
 
   try {
+    console.log(`🔍 Căutare rezervare pentru camera ${roomNumber} la data ${date}`);
+    
     // Căutăm rezervarea în baza de date
     const reservation = await getReservationByRoomAndDate(roomNumber, date);
 
     if (reservation) {
-      // Am găsit rezervarea - construim răspunsul pentru deschiderea rezervării existente
+      console.log(`✅ Rezervare găsită pentru camera ${roomNumber}:`, 
+        reservation.id ? `ID: ${reservation.id}` : 'ATENȚIE: ID-ul rezervării lipsește!');
+      
+      // Verificăm că avem un ID valid pentru rezervare
+      if (!reservation.id) {
+        sendResponse({
+          intent: CHAT_INTENTS.MODIFY_RESERVATION,
+          type: RESPONSE_TYPES.ERROR,
+          message: `Am găsit rezervarea pentru camera ${roomNumber}, dar ID-ul rezervării lipsește.`,
+          extraIntents: extraIntents || [],
+          reservation: null
+        });
+        return;
+      }
+      
+      // Am găsit rezervarea cu ID valid - construim răspunsul pentru deschiderea rezervării existente
       sendResponse({
         intent: CHAT_INTENTS.MODIFY_RESERVATION,
         type: RESPONSE_TYPES.INFO,
-        message: `Am găsit rezervarea pentru camera ${roomNumber}. Se deschide formularul pentru modificare.`,
+        message: `Am găsit rezervarea #${reservation.id} pentru camera ${roomNumber}. Se deschide formularul pentru modificare.`,
         reservation: {
           id: reservation.id,
+          roomNumber: roomNumber,
           startDate: reservation.startDate,
           endDate: reservation.endDate
         },

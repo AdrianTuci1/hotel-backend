@@ -38,15 +38,6 @@ const processMessage = async (ws, message) => {
         await handleAutomationAction(ws, parsedMessage.action);
         break;
 
-      case "ROOM_ACTION":
-      case "POS_ACTION":
-        // Aceste tipuri pot fi implementate în viitor
-        ws.send(JSON.stringify({
-          type: OUTGOING_MESSAGE_TYPES.ERROR,
-          message: `Tipul de acțiune ${parsedMessage.type} nu este implementat încă`
-        }));
-        break;
-
       default:
         throw new Error(`Tip de mesaj necunoscut: ${parsedMessage.type}`);
     }

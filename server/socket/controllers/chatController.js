@@ -16,7 +16,7 @@ const handleMessage = async (socket, message) => {
     // Definim funcția de trimitere a răspunsului
     const sendResponse = (response) => {
       console.log(`✉️ Trimitere răspuns la client:`, response);
-      socket.emit("chat_response", response);
+      socket.send(JSON.stringify({ response }));
     };
     
     // Procesăm intenția și trimitem răspunsul prin callback
