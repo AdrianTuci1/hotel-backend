@@ -6,6 +6,7 @@ const { syncDB } = require("./db");
 const url = require("url");
 const reservationRoutes = require('./routes/reservations');
 const roomRoutes = require('./routes/rooms');
+const roomStatusRoutes = require('./routes/roomStatus');
 const { testReservationsStructure } = require('./utils/roomUtils');
 const { initSocket } = require('./socket');
 
@@ -21,9 +22,9 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/rooms", roomRoutes);
+app.use("/api/room-status", roomStatusRoutes);
 
 // Endpoint de test pentru verificarea structurii rezervărilor
 app.get("/api/test/reservations-structure", async (req, res) => {
