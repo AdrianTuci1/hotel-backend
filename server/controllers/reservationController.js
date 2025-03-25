@@ -1,6 +1,7 @@
 const Room = require("../models/Room");
 const Reservation = require("../models/Reservation");
 const { emitReservationsUpdate } = require("../socket");
+const { addToHistory } = require('../utils/historyHelper');
 
 const createReservation = async (req, res) => {
   try {
@@ -62,6 +63,17 @@ const createReservation = async (req, res) => {
       hasInvoice,
       hasReceipt,
       notes
+    });
+
+    // Adăugăm în istoric
+    await addToHistory({
+      type: 'RESERVATION',
+      action: 'CREATE',
+      content: reservation,
+      metadata: {
+        userId: req.user.id,
+        userName: req.user.name
+      }
     });
 
     // Formatăm răspunsul în același format ca în WebSocket
@@ -167,6 +179,21 @@ const updateReservation = async (req, res) => {
     // Reîncărcăm rezervarea pentru a obține datele actualizate
     const updatedReservation = await Reservation.findByPk(id);
 
+    // Adăugăm în istoric
+    await addToHistory({
+      type: 'RESERVATION',
+      action: 'UPDATE',
+      content: {
+        old: existingReservation.toJSON(),
+        new: updatedReservation.toJSON()
+      },
+      metadata: {
+        userId: req.user.id,
+        userName: req.user.name,
+        reservationId: id
+      }
+    });
+
     // Formatăm răspunsul
     const formattedReservation = {
       id: updatedReservation.id,
@@ -216,8 +243,23 @@ const deleteReservation = async (req, res) => {
       return res.status(404).json({ message: "❌ Rezervarea nu a fost găsită." });
     }
 
+    // Salvăm datele pentru istoric înainte de ștergere
+    const reservationData = reservation.toJSON();
+
     // Ștergem rezervarea
     await reservation.destroy();
+
+    // Adăugăm în istoric
+    await addToHistory({
+      type: 'RESERVATION',
+      action: 'DELETE',
+      content: reservationData,
+      metadata: {
+        userId: req.user.id,
+        userName: req.user.name,
+        reservationId: id
+      }
+    });
 
     // Emitem actualizarea prin WebSocket
     emitReservationsUpdate();

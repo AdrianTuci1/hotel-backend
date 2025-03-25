@@ -8,6 +8,7 @@ const preferencesRegex = /\b(fumator|nefumator|vedere la mare|etaj superior|parc
 // Adăugăm regex pentru numere de cameră și telefon
 const roomNumberRegex = /\b(?:camera|cam\.?|c\.?|nr\.?)\s*(?:de|cu|numar|număr)?\s*(\d{1,4})\b|\b(\d{1,4})\s*(?:camera|cam\.?)\b|\bc(\d{1,4})\b|\b(\d{3})\b/i;
 const phoneNumberRegex = /\b(?:telefon|tel\.?|numar|număr|nr\.?)?:?\s*((?:\+?4?0|0)?[ \-\.]?(?:7[0-9]{2}|7[0-9]{8}|[0-9]{2}[ \-\.]?[0-9]{3}[ \-\.]?[0-9]{3}|[0-9]{3}[ \-\.]?[0-9]{3}[ \-\.]?[0-9]{3}))\b/i;
+const problemKeywords = /\b(problema|probl|issue|defect)\b/i;
 
 // Lista de cuvinte care nu pot fi nume
 const nonNameWords = new Set([
@@ -16,7 +17,8 @@ const nonNameWords = new Set([
   'fumator', 'nefumator', 'vedere', 'mare', 'etaj', 'superior', 'parcare',
   'inclusa', 'inclus', 'pat', 'suplimentar', 'mic', 'dejun',
   'zile', 'nopti', 'pana', 'intre', 'perioada', 'data', 'mar', 'apr', 'iun', 'iul', 'aug', 'sep', 'oct', 'nov', 'dec', 
-  'ianuarie', 'februarie', 'martie', 'aprilie', 'mai','iunie','iulie','august','septembrie','octombrie','noiembrie','decembrie']);
+  'ianuarie', 'februarie', 'martie', 'aprilie', 'mai','iunie','iulie','august','septembrie','octombrie','noiembrie','decembrie',
+  'problema', 'probl', 'issue', 'defect']);
 
 const normalizeText = (text) => {
   // Convertim la lowercase și eliminăm diacriticele
@@ -85,6 +87,35 @@ const extractPhoneNumber = (message) => {
   return null;
 };
 
+const extractProblemDescription = (message) => {
+  // Verificăm dacă mesajul conține un cuvânt cheie pentru probleme
+  const problemMatch = message.match(problemKeywords);
+  if (!problemMatch) return null;
+
+  // Identificăm numărul camerei
+  const roomNumber = extractRoomNumber(message);
+  if (!roomNumber) return null;
+
+  // Găsim poziția cuvântului cheie și a numărului camerei în mesaj
+  const problemKeywordIndex = message.indexOf(problemMatch[0]);
+  const roomNumberIndex = message.indexOf(roomNumber, problemKeywordIndex);
+  
+  // Dacă am găsit ambele elemente, extragem textul după numărul camerei
+  if (roomNumberIndex > problemKeywordIndex) {
+    // Calculăm indexul de început după numărul camerei
+    const startIndex = roomNumberIndex + roomNumber.length;
+    
+    // Verificăm dacă mai există text după numărul camerei
+    if (startIndex < message.length) {
+      // Extragem și normalizăm descrierea problemei
+      const problemDescription = message.substring(startIndex).trim();
+      return problemDescription || null;
+    }
+  }
+  
+  return null;
+};
+
 const extractEntities = (message) => {
   const normalizedMessage = normalizeText(message);
   let entities = {};
@@ -112,6 +143,10 @@ const extractEntities = (message) => {
   // Extragem numărul de telefon
   const phoneNumber = extractPhoneNumber(message);
   if (phoneNumber) entities.phoneNumber = phoneNumber;
+  
+  // Extragem descrierea problemei
+  const problemDescription = extractProblemDescription(message);
+  if (problemDescription) entities.problemDescription = problemDescription;
 
   return entities;
 };

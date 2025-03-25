@@ -1,7 +1,5 @@
 const { OUTGOING_MESSAGE_TYPES } = require('../utils/messageTypes');
 const { handleMessage } = require('../controllers/chatController');
-const { handleReservationAction } = require('../controllers/reservationController');
-const { handleAutomationAction } = require('../controllers/automationController');
 
 /**
  * Distribuitor central pentru acțiuni primite prin socket
@@ -19,27 +17,10 @@ const processMessage = async (ws, message) => {
     }
 
     // Direcționăm mesajul către handler-ul corespunzător
-    switch (parsedMessage.type) {
-      case "CHAT_MESSAGE":
-        await handleMessage(ws, parsedMessage.content);
-        break;
-
-      case "RESERVATION_ACTION":
-        if (!parsedMessage.action) {
-          throw new Error("Mesajul nu conține o acțiune pentru rezervare");
-        }
-        await handleReservationAction(ws, parsedMessage.action, parsedMessage.data);
-        break;
-
-      case "AUTOMATION_ACTION":
-        if (!parsedMessage.action) {
-          throw new Error("Mesajul nu conține o acțiune pentru automatizare");
-        }
-        await handleAutomationAction(ws, parsedMessage.action);
-        break;
-
-      default:
-        throw new Error(`Tip de mesaj necunoscut: ${parsedMessage.type}`);
+    if (parsedMessage.type === "CHAT_MESSAGE") {
+      await handleMessage(ws, parsedMessage.content);
+    } else {
+      throw new Error(`Tip de mesaj necunoscut: ${parsedMessage.type}`);
     }
   } catch (error) {
     console.error("❌ Eroare la procesarea mesajului:", error);

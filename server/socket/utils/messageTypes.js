@@ -1,10 +1,6 @@
 // 📨 Tipuri de mesaje primite de la client
 const INCOMING_MESSAGE_TYPES = {
-  CHAT_MESSAGE: 'chat_message',
-  RESERVATION_ACTION: 'reservation_action',
-  ROOM_ACTION: 'room_action',
-  POS_ACTION: 'pos_action',
-  AUTOMATION_ACTION: 'automation_action'
+  CHAT_MESSAGE: 'chat_message'
 };
 
 // 📤 Tipuri de mesaje trimise către client
@@ -28,6 +24,7 @@ const CHAT_INTENTS = {
   // Camere
   CREATE_ROOM: 'create_room',
   MODIFY_ROOM: 'modify_room',
+  ROOM_PROBLEM: 'room_problem',
   
   // Rapoarte și Facturi
   SHOW_REPORTS: 'show_reports',
@@ -57,41 +54,9 @@ const RESPONSE_TYPES = {
   INFO: 'info'
 };
 
-// 🔄 Tipuri de acțiuni pentru rezervări
-const RESERVATION_ACTIONS = {
-  CREATE: 'create',
-  UPDATE: 'update',
-  DELETE: 'delete',
-  ADD_PHONE: 'add_phone'
-};
-
-// 🏨 Tipuri de acțiuni pentru camere
-const ROOM_ACTIONS = {
-  CREATE: 'create',
-  UPDATE: 'update',
-  DELETE: 'delete'
-};
-
-// 🛒 Tipuri de acțiuni pentru POS
-const POS_ACTIONS = {
-  SELL: 'sell',
-  REFUND: 'refund',
-  CLOSE_SALE: 'close_sale'
-};
-
-const AUTOMATION_ACTIONS = {
-  BOOKING_EMAIL: 'BOOKING_EMAIL',
-  WHATSAPP_MESSAGE: 'WHATSAPP_MESSAGE',
-  PRICE_ANALYSIS: 'PRICE_ANALYSIS'
-};
-
 module.exports = {
   INCOMING_MESSAGE_TYPES,
   OUTGOING_MESSAGE_TYPES,
   CHAT_INTENTS,
-  RESPONSE_TYPES,
-  RESERVATION_ACTIONS,
-  ROOM_ACTIONS,
-  POS_ACTIONS,
-  AUTOMATION_ACTIONS
+  RESPONSE_TYPES
 }; 

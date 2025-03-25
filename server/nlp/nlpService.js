@@ -17,8 +17,9 @@ const quickRoute = {
   "creeaza cam": CHAT_INTENTS.CREATE_ROOM,
   "adauga camera": CHAT_INTENTS.CREATE_ROOM,
   "modifica cam": CHAT_INTENTS.MODIFY_ROOM,
-  "sterge cam": CHAT_INTENTS.DELETE_ROOM,
+  "problema": CHAT_INTENTS.ROOM_PROBLEM,
 
+  
   // Rapoarte și Facturi
   rapoarte: CHAT_INTENTS.SHOW_REPORTS,
   statistici: CHAT_INTENTS.SHOW_REPORTS,

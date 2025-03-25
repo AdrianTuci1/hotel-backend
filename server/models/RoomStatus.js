@@ -15,7 +15,7 @@ const RoomStatus = sequelize.define("RoomStatus", {
   isClean: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
-    defaultValue: false,
+    defaultValue: true,
   },
   hasProblems: {
     type: DataTypes.BOOLEAN,

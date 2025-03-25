@@ -44,6 +44,10 @@ const trainingData = [
     ["actualizeaza camera 205", "modify_room"],
     ["sterge cam 101", "delete_room"],
     ["elimina camera 205", "delete_room"],
+    ["problema c101", "room_problem"],
+    ["problema camera 205", "room_problem"],
+    ["problema 301 frigider stricat", "room_problem"],
+    ["probl c102 nu functioneaza aerul conditionat", "room_problem"],
 
     // 📞 Adăugare Telefon
     ["tel 101 15 mar 0722123456", "add_phone"],

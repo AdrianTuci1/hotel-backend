@@ -9,6 +9,14 @@ const roomRoutes = require('./routes/rooms');
 const roomStatusRoutes = require('./routes/roomStatus');
 const { testReservationsStructure } = require('./utils/roomUtils');
 const { initSocket } = require('./socket');
+const morgan = require("morgan");
+const { initializeWebSocket } = require("./websocket");
+const { sequelize } = require("./models");
+const { errorHandler } = require("./middleware/errorHandler");
+const { authenticateToken } = require("./middleware/auth");
+const authRoutes = require("./routes/authRoutes");
+const stockRoutes = require("./routes/stockRoutes");
+const historyRoutes = require("./routes/historyRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -21,10 +29,14 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(morgan("dev"));
 
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/room-status", roomStatusRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/stock", stockRoutes);
+app.use("/api/history", historyRoutes);
 
 // Endpoint de test pentru verificarea structurii rezervărilor
 app.get("/api/test/reservations-structure", async (req, res) => {
@@ -37,8 +49,20 @@ app.get("/api/test/reservations-structure", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 5000;
+// Ruta de test pentru autentificare
+app.get("/api/test", authenticateToken, (req, res) => {
+  res.json({ message: "✅ Ruta protejată accesată cu succes!", user: req.user });
+});
 
+// Ruta pentru verificarea stării serverului
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Middleware pentru gestionarea erorilor
+app.use(errorHandler);
+
+const PORT = process.env.PORT || 3000;
 
 // ✅ Inițializăm baza de date și WebSocket Server
 syncDB().then(() => {
@@ -57,7 +81,20 @@ syncDB().then(() => {
     }
   });
 
-  server.listen(PORT, () => {
-    console.log(`✅ Server running on http://localhost:${PORT}`);
+  server.listen(PORT, async () => {
+    try {
+      // Sincronizăm baza de date
+      await sequelize.sync();
+      console.log("✅ Baza de date sincronizată cu succes!");
+
+      // Inițializăm WebSocket
+      initializeWebSocket(server);
+      console.log("✅ WebSocket inițializat cu succes!");
+
+      console.log(`🚀 Serverul rulează pe portul ${PORT}`);
+    } catch (error) {
+      console.error("❌ Eroare la pornirea serverului:", error);
+      process.exit(1);
+    }
   });
 });

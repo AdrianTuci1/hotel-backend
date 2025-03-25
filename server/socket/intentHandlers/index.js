@@ -6,6 +6,7 @@ const { handleAddPhoneIntent } = require("./phoneHandler");
 const { handleCreateRoomIntent, handleModifyRoomIntent } = require("./roomHandler");
 const { handleSellProductIntent } = require("./posHandler");
 const { handleDefaultIntent } = require("./defaultHandler");
+const { handleRoomProblemIntent } = require ("./problemHandler")
 
 /**
  * Map de handlere pentru fiecare intenție
@@ -24,9 +25,11 @@ const intentHandlers = {
   [CHAT_INTENTS.RESERVATION]: handleReservationIntent, //TYPE: RESPONSE_TYPES.INFO  
   [CHAT_INTENTS.MODIFY_RESERVATION]: findReservationByRoomAndDate, //TYPE: RESPONSE_TYPES.INFO
   [CHAT_INTENTS.ADD_PHONE]: handleAddPhoneIntent, //TYPE: RESPONSE_TYPES.CONFIRM
+
   // Camere
   [CHAT_INTENTS.CREATE_ROOM]: handleCreateRoomIntent, //TYPE: RESPONSE_TYPES.ROOM
   [CHAT_INTENTS.MODIFY_ROOM]: handleModifyRoomIntent, //TYPE: RESPONSE_TYPES.ROOM
+  [CHAT_INTENTS.ROOM_PROBLEM]: handleRoomProblemIntent, //TYPE: RESPONSE_TYPES.ROOM
   
   // POS și Stoc
   [CHAT_INTENTS.SELL_PRODUCT]: handleSellProductIntent, //TYPE: RESPONSE_TYPES.POS

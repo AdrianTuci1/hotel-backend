@@ -18,6 +18,7 @@ const intentMessages = {
     create_room: "✨ Camera va fi creată cu specificațiile menționate.",
     modify_room: "🔄 Se vor actualiza detaliile camerei.",
     delete_room: "❌ Camera va fi ștearsă din sistem.",
+    room_problem: "🚨 Problema cu camera a fost înregistrată.",
 
     // 🛒 POS și Vânzări
     sell_product: "🛍️ Produsul va fi adăugat la nota de plată a camerei.",
