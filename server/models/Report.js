@@ -1,31 +1,60 @@
 const { DataTypes } = require("sequelize");
-const sequelize = require("../db").sequelize;
+const sequelize = require("../config/database");
 
 const Report = sequelize.define("Report", {
   id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
+    type: DataTypes.INTEGER,
     primaryKey: true,
+    autoIncrement: true,
   },
-  date: {
-    type: DataTypes.DATEONLY,
+  type: {
+    type: DataTypes.ENUM("SALES"),
     allowNull: false,
-    unique: true,
   },
-  totalSales: {
+  period: {
+    type: DataTypes.JSON,
+    allowNull: false,
+  },
+  data: {
+    type: DataTypes.JSON,
+    allowNull: false,
+    // Structura pentru raportul de vânzări
+    // {
+    //   sales: {
+    //     total: number,
+    //     cash: number,
+    //     card: number,
+    //     rooms: number,
+    //     pos: number
+    //   },
+    //   posDetails: [
+    //     {
+    //       name: string,
+    //       totalQuantity: number,
+    //       totalAmount: number
+    //     }
+    //   ],
+    //   summary: {
+    //     totalSales: number,
+    //     cashSales: number,
+    //     cardSales: number,
+    //     roomSales: number,
+    //     posSales: number,
+    //     cashPercentage: string,
+    //     cardPercentage: string,
+    //     roomsPercentage: string,
+    //     posPercentage: string
+    //   }
+    // }
+  },
+  generatedBy: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    defaultValue: 0,
   },
-  totalReservations: {
-    type: DataTypes.INTEGER,
+  createdAt: {
+    type: DataTypes.DATE,
     allowNull: false,
-    defaultValue: 0,
-  },
-  totalRevenue: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 0,
+    defaultValue: DataTypes.NOW,
   },
 });
 
