@@ -1,4 +1,4 @@
-const MessageHistory = require('../../models/MessageHistory');
+const { MessageHistory } = require('../../models');
 const { Op } = require('sequelize');
 const { OUTGOING_MESSAGE_TYPES } = require('../utils/messageTypes');
 

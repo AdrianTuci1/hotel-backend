@@ -10,8 +10,12 @@ const { getReservationByRoomAndDate } = require("../services/reservationService"
 const handleAddPhoneIntent = async (entities, extraIntents = [], sendResponse) => {
   console.log('📱 Adăugare număr de telefon cu entități:', entities);
 
+  // Așteptăm rezolvarea promise-ului pentru entități
+  const resolvedEntities = await entities;
+  console.log('📱 Entități rezolvate:', resolvedEntities);
+
   // Verificăm dacă există un număr de telefon în entități (poate fi 'phone' sau 'phoneNumber')
-  if (!entities.phoneNumber) {
+  if (!resolvedEntities.phoneNumber) {
     // Dacă nu avem număr de telefon, trimitem un mesaj de eroare
     sendResponse({
       intent: CHAT_INTENTS.ADD_PHONE,
@@ -24,8 +28,8 @@ const handleAddPhoneIntent = async (entities, extraIntents = [], sendResponse) =
   }
 
   // Extragem corect numărul de telefon - poate fi în 'phone' sau 'phoneNumber'
-  const phoneProperty = entities.phoneNumber ? 'phoneNumber' : 'phone';
-  const phoneValue = entities[phoneProperty];
+  const phoneProperty = resolvedEntities.phoneNumber ? 'phoneNumber' : 'phone';
+  const phoneValue = resolvedEntities[phoneProperty];
   
   // Verificăm formatul numărului de telefon (poate fi direct string sau obiect cu proprietatea value)
   const phoneNumber = typeof phoneValue === 'object' && phoneValue.value
@@ -35,7 +39,7 @@ const handleAddPhoneIntent = async (entities, extraIntents = [], sendResponse) =
   console.log(`📱 Număr de telefon identificat (${phoneProperty}): ${phoneNumber}`);
 
   // Verificăm dacă avem camera și data pentru a găsi rezervarea
-  if (!entities.roomNumber) {
+  if (!resolvedEntities.roomNumber) {
     sendResponse({
       intent: CHAT_INTENTS.ADD_PHONE,
       type: RESPONSE_TYPES.ERROR,
@@ -47,7 +51,7 @@ const handleAddPhoneIntent = async (entities, extraIntents = [], sendResponse) =
   }
 
   // Verificăm dacă avem o dată
-  if (!entities.dates || !entities.dates.length || !entities.dates[0].startDate) {
+  if (!resolvedEntities.dates || !resolvedEntities.dates.length || !resolvedEntities.dates[0].startDate) {
     sendResponse({
       intent: CHAT_INTENTS.ADD_PHONE,
       type: RESPONSE_TYPES.ERROR,
@@ -59,12 +63,12 @@ const handleAddPhoneIntent = async (entities, extraIntents = [], sendResponse) =
   }
 
   // Extragem corect numărul camerei - poate fi direct string sau obiect cu proprietatea value
-  const roomNumber = typeof entities.roomNumber === 'object' && entities.roomNumber.value 
-    ? entities.roomNumber.value 
-    : entities.roomNumber;
+  const roomNumber = typeof resolvedEntities.roomNumber === 'object' && resolvedEntities.roomNumber.value 
+    ? resolvedEntities.roomNumber.value 
+    : resolvedEntities.roomNumber;
 
   // Extragem corect data - poate fi direct string sau obiect cu proprietatea value
-  const date = entities.dates[0].startDate.value || entities.dates[0].startDate;
+  const date = resolvedEntities.dates[0].startDate.value || resolvedEntities.dates[0].startDate;
 
   try {
     console.log(`🔍 Căutare rezervare pentru camera ${roomNumber} la data ${date} pentru adăugare telefon ${phoneNumber}`);

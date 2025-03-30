@@ -5,6 +5,7 @@ const Stock = require("./Stock");
 const Report = require("./Report");
 const Invoice = require("./Invoice");
 const User = require("./User");
+const MessageHistory = require("./MessageHistory");
 
 // ✅ Configurare Sequelize
 const sequelize = new Sequelize(process.env.DATABASE_URL || 'sqlite::memory:', {
@@ -19,7 +20,8 @@ const models = {
   Stock: Stock(sequelize),
   Report: Report(sequelize),
   Invoice: Invoice(sequelize),
-  User: User(sequelize)
+  User: User(sequelize),
+  MessageHistory: MessageHistory(sequelize)
 };
 
 // ✅ Relații între tabele

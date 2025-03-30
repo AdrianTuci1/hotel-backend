@@ -108,14 +108,34 @@ const handleCreateRoomIntent = async (entities, extraIntents = [], sendResponse)
 const handleModifyRoomIntent = async (entities, extraIntents = [], sendResponse) => {
   console.log('🏨 Modificare cameră cu entități:', entities);
 
+  // Așteptăm rezolvarea promise-ului pentru entități
+  const resolvedEntities = await entities;
+  console.log('🏨 Entități rezolvate:', resolvedEntities);
+
   // Extragem corect numărul camerei - poate fi direct string/number sau obiect cu proprietatea value
-  const roomNumber = entities.roomNumber 
-    ? (typeof entities.roomNumber === 'object' && entities.roomNumber.value 
-      ? entities.roomNumber.value 
-      : entities.roomNumber)
+  const roomNumber = resolvedEntities.roomNumber 
+    ? (typeof resolvedEntities.roomNumber === 'object' && resolvedEntities.roomNumber.value 
+      ? resolvedEntities.roomNumber.value 
+      : resolvedEntities.roomNumber)
+    : null;
+    
+  // Extragem corect tipul camerei - poate fi direct string sau obiect cu proprietatea value
+  const roomType = resolvedEntities.roomType
+    ? (typeof resolvedEntities.roomType === 'object' && resolvedEntities.roomType.value
+      ? resolvedEntities.roomType.value
+      : resolvedEntities.roomType)
+    : null;
+    
+  // Extragem corect prețul - poate fi direct number/string sau obiect cu proprietatea value
+  const priceRaw = resolvedEntities.price
+    ? (typeof resolvedEntities.price === 'object' && resolvedEntities.price.value
+      ? resolvedEntities.price.value
+      : resolvedEntities.price)
     : null;
   
-  console.log(`🏨 Camera care urmează să fie modificată: ${roomNumber}`);
+  const price = priceRaw ? parseFloat(priceRaw) : null;
+  
+  console.log(`🏨 Camera care urmează să fie modificată: ${roomNumber}, tip: ${roomType}, preț: ${price}`);
 
   // Verificăm dacă avem numărul camerei
   if (!roomNumber) {
@@ -153,8 +173,8 @@ const handleModifyRoomIntent = async (entities, extraIntents = [], sendResponse)
         room: {
           id: room.id,
           number: room.number,
-          type: room.type,
-          price: room.price,
+          type: roomType || room.type,
+          price: price || room.price,
         },
         extraIntents: extraIntents || []
       });
