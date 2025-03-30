@@ -1,4 +1,4 @@
-const { sequelize } = require("../db");
+const { sequelize } = require("../models");
 const Room = require("../models/Room");
 const Reservation = require("../models/Reservation");
 
@@ -11,8 +11,12 @@ const seedDatabase = async () => {
 
     await sequelize.sync({ force: true }); // ✅ Resetăm și recreăm tabelele
 
+    // 📌 Inițializăm modelele cu instanța sequelize
+    const RoomModel = Room(sequelize);
+    const ReservationModel = Reservation(sequelize);
+
     // 📌 Adăugăm camere demo
-    await Room.bulkCreate([
+    await RoomModel.bulkCreate([
       { number: "101", type: "single", price: 200 },
       { number: "102", type: "dubla", price: 350 },
       { number: "103", type: "twin", price: 300 },
@@ -39,7 +43,7 @@ const seedDatabase = async () => {
     };
 
     // 📌 Adăugăm rezervări demo
-    await Reservation.bulkCreate([
+    await ReservationModel.bulkCreate([
       {
         fullName: "Mihai Popescu",
         phone: "+40722123456",
@@ -256,6 +260,7 @@ const seedDatabase = async () => {
     console.log("✅ Baza de date a fost populată cu rezervări demo!");
   } catch (error) {
     console.error("❌ Eroare la popularea bazei de date:", error);
+    throw error;
   } finally {
     await sequelize.close();
     process.exit();

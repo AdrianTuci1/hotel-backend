@@ -1,4 +1,6 @@
 const { processMessage } = require('./actionHandler');
+const { sendActiveReservationsToClient } = require('../controllers/reservationController');
+const { setupAutomationChecks } = require('../controllers/automationController');
 
 /**
  * Handler pentru conexiunile WebSocket
