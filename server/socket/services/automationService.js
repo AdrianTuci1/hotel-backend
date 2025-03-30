@@ -1,6 +1,5 @@
 const OpenAI = require("openai");
-const Reservation = require("../../models/Reservation");
-const Room = require("../../models/Room");
+const { Room, Reservation } = require("../../models");
 const { Op } = require("sequelize");
 const { OUTGOING_MESSAGE_TYPES } = require("../utils/messageTypes");
 

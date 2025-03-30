@@ -1,14 +1,17 @@
 const extractDates = require("../utils/extractDates");
 const natural = require('natural');
 const tokenizer = new natural.WordTokenizer();
+const { Stock } = require("../models");
 
 // Regex-uri îmbunătățite
 const roomTypeRegex = /\b(single|dubla|twin|apartament|deluxe|superioara|standard)\b/i;
 const preferencesRegex = /\b(fumator|nefumator|vedere la mare|etaj superior|parcare inclusa|pat suplimentar|mic dejun inclus)\b/i;
-// Adăugăm regex pentru numere de cameră și telefon
-const roomNumberRegex = /\b(?:camera|cam\.?|c\.?|nr\.?)\s*(?:de|cu|numar|număr)?\s*(\d{1,4})\b|\b(\d{1,4})\s*(?:camera|cam\.?)\b|\bc(\d{1,4})\b|\b(\d{3})\b/i;
+// Îmbunătățim regex-ul pentru numere de cameră pentru a captura mai bine formatul "cam 301"
+const roomNumberRegex = /\b(?:camera|cam\.?|c\.?|nr\.?)\s*(?:de|cu|numar|număr)?\s*(\d{1,4})\b|\b(\d{1,4})\s*(?:camera|cam\.?)\b|\bc(\d{1,4})\b|\b(\d{3})\b|\b(?:camera|cam\.?)\s*(\d{1,4})\b/i;
 const phoneNumberRegex = /\b(?:telefon|tel\.?|numar|număr|nr\.?)?:?\s*((?:\+?4?0|0)?[ \-\.]?(?:7[0-9]{2}|7[0-9]{8}|[0-9]{2}[ \-\.]?[0-9]{3}[ \-\.]?[0-9]{3}|[0-9]{3}[ \-\.]?[0-9]{3}[ \-\.]?[0-9]{3}))\b/i;
 const problemKeywords = /\b(problema|probl|issue|defect)\b/i;
+// Adăugăm regex pentru preț
+const priceRegex = /\b(\d+)\s*(?:lei|ron|€|euro)?\b/i;
 
 // Lista de cuvinte care nu pot fi nume
 const nonNameWords = new Set([
@@ -72,8 +75,10 @@ const extractName = (message, roomType) => {
 const extractRoomNumber = (message) => {
   const match = message.match(roomNumberRegex);
   if (match) {
-    // Verificăm grupele de captură în ordinea priorității și returnăm prima valoare găsită non-null
-    return match[1] || match[2] || match[3] || match[4];
+    // Verificăm toate grupele de captură și returnăm prima valoare găsită non-null
+    for (let i = 1; i < match.length; i++) {
+      if (match[i]) return match[i];
+    }
   }
   return null;
 };
@@ -116,7 +121,34 @@ const extractProblemDescription = (message) => {
   return null;
 };
 
-const extractEntities = (message) => {
+const extractPrice = (message) => {
+  const match = message.match(priceRegex);
+  if (match && match[1]) {
+    return parseInt(match[1]);
+  }
+  return null;
+};
+
+const extractItem = async (message) => {
+  const normalizedMessage = normalizeText(message);
+  
+  // Obținem toate elementele din stoc
+  const items = await Stock.findAll({
+    attributes: ['name']
+  });
+
+  // Creăm un regex din numele elementelor
+  const itemNames = items.map(item => item.name.toLowerCase());
+  const itemRegex = new RegExp(`\\b(${itemNames.join('|')})\\b`, 'i');
+  
+  const match = normalizedMessage.match(itemRegex);
+  if (match) {
+    return match[0].toLowerCase();
+  }
+  return null;
+};
+
+const extractEntities = async (message) => {
   const normalizedMessage = normalizeText(message);
   let entities = {};
 
@@ -147,6 +179,14 @@ const extractEntities = (message) => {
   // Extragem descrierea problemei
   const problemDescription = extractProblemDescription(message);
   if (problemDescription) entities.problemDescription = problemDescription;
+
+  // Extragem prețul
+  const price = extractPrice(message);
+  if (price) entities.price = price;
+
+  // Extragem elementul din stoc
+  const item = await extractItem(message);
+  if (item) entities.item = item;
 
   return entities;
 };

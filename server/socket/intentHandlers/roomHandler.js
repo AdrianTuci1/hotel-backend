@@ -1,5 +1,5 @@
 const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
-const Room = require("../../models/Room");
+const { Room } = require("../../models");
 
 /**
  * Handler pentru intenția de creare a camerelor
@@ -10,25 +10,29 @@ const Room = require("../../models/Room");
 const handleCreateRoomIntent = async (entities, extraIntents = [], sendResponse) => {
   console.log('🏨 Creare cameră cu entități:', entities);
 
+  // Așteptăm rezolvarea promise-ului pentru entități
+  const resolvedEntities = await entities;
+  console.log('🏨 Entități rezolvate:', resolvedEntities);
+
   // Extragem corect numărul camerei - poate fi direct string/number sau obiect cu proprietatea value
-  const roomNumber = entities.roomNumber 
-    ? (typeof entities.roomNumber === 'object' && entities.roomNumber.value 
-      ? entities.roomNumber.value 
-      : entities.roomNumber)
+  const roomNumber = resolvedEntities.roomNumber 
+    ? (typeof resolvedEntities.roomNumber === 'object' && resolvedEntities.roomNumber.value 
+      ? resolvedEntities.roomNumber.value 
+      : resolvedEntities.roomNumber)
     : null;
     
   // Extragem corect tipul camerei - poate fi direct string sau obiect cu proprietatea value
-  const roomType = entities.roomType
-    ? (typeof entities.roomType === 'object' && entities.roomType.value
-      ? entities.roomType.value
-      : entities.roomType)
+  const roomType = resolvedEntities.roomType
+    ? (typeof resolvedEntities.roomType === 'object' && resolvedEntities.roomType.value
+      ? resolvedEntities.roomType.value
+      : resolvedEntities.roomType)
     : null;
     
   // Extragem corect prețul - poate fi direct number/string sau obiect cu proprietatea value
-  const priceRaw = entities.price
-    ? (typeof entities.price === 'object' && entities.price.value
-      ? entities.price.value
-      : entities.price)
+  const priceRaw = resolvedEntities.price
+    ? (typeof resolvedEntities.price === 'object' && resolvedEntities.price.value
+      ? resolvedEntities.price.value
+      : resolvedEntities.price)
     : null;
   
   const price = priceRaw ? parseFloat(priceRaw) : 0;

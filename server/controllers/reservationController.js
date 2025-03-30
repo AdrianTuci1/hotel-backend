@@ -1,5 +1,4 @@
-const Room = require("../models/Room");
-const Reservation = require("../models/Reservation");
+const { Room, Reservation } = require("../models");
 const { emitReservationsUpdate } = require("../socket");
 const { addToHistory } = require('../utils/historyHelper');
 

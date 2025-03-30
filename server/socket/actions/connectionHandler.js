@@ -1,6 +1,7 @@
 const { processMessage } = require('./actionHandler');
 const { sendActiveReservationsToClient } = require('../controllers/reservationController');
 const { setupAutomationChecks } = require('../controllers/automationController');
+const { broadcastHistoryUpdate, getHistory } = require('../services/historyService');
 
 /**
  * Handler pentru conexiunile WebSocket
@@ -13,7 +14,7 @@ let clients = new Set();
 const getClients = () => clients;
 
 // Gestionează o nouă conexiune WebSocket
-const handleConnection = (ws) => {
+const handleConnection = async (ws) => {
   console.log("✅ Client WebSocket conectat.");
   
   // Adăugăm clientul în lista de clienți activi
@@ -24,6 +25,18 @@ const handleConnection = (ws) => {
 
   // Trimitem rezervările active la clientul conectat
   sendActiveReservationsToClient(ws);
+
+  // Trimitem istoricul mesajelor la clientul conectat
+  try {
+    const history = await getHistory({ pageSize: 50 }); // Trimitem ultimele 50 de mesaje
+    const message = JSON.stringify({
+      type: 'history',
+      data: history
+    });
+    ws.send(message);
+  } catch (error) {
+    console.error('❌ Eroare la trimiterea istoricului:', error);
+  }
 
   // Configurăm verificările automate pentru acest client
   const intervals = setupAutomationChecks(ws);

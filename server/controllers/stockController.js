@@ -1,4 +1,4 @@
-const Stock = require("../models/Stock");
+const { Stock } = require("../models");
 const { addToHistory } = require('../utils/historyHelper');
 
 // Obține toate elementele din stoc
