@@ -1,5 +1,5 @@
 const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
-const RoomStatus = require("../../models/RoomStatus");
+const { RoomStatus } = require("../../models");
 
 /**
  * Handler pentru intenția de raportare a unei probleme într-o cameră
@@ -10,6 +10,19 @@ const RoomStatus = require("../../models/RoomStatus");
 const handleRoomProblemIntent = async (entities, extraIntents = [], sendResponse) => {
   console.log('🔧 Handler problemă cameră apelat cu entități:', entities);
   
+  // Verificăm dacă entities este un obiect valid
+  if (!entities || typeof entities !== 'object') {
+    console.error('❌ Entități invalide primite:', entities);
+    sendResponse({
+      intent: CHAT_INTENTS.ROOM_PROBLEM,
+      type: RESPONSE_TYPES.ERROR,
+      message: "A apărut o eroare la procesarea mesajului. Vă rugăm să încercați din nou.",
+      extraIntents: extraIntents || [],
+      reservation: null
+    });
+    return;
+  }
+
   if (!entities.roomNumber) {
     sendResponse({
       intent: CHAT_INTENTS.ROOM_PROBLEM,
@@ -48,14 +61,15 @@ const handleRoomProblemIntent = async (entities, extraIntents = [], sendResponse
           roomNumber,
           isClean: true,
           hasProblems: true,
-          problem: problemDescription
+          problem: problemDescription,
+          reportedAt: new Date()
         });
       } catch (createError) {
         console.error('❌ Eroare la crearea statusului camerei:', createError);
         sendResponse({
           intent: CHAT_INTENTS.ROOM_PROBLEM,
           type: RESPONSE_TYPES.ERROR,
-          message: "Nu am putut actualiza statusul.",
+          message: "Nu am putut actualiza statusul camerei. Vă rugăm să încercați din nou.",
           extraIntents: extraIntents || [],
           reservation: null
         });
@@ -65,30 +79,31 @@ const handleRoomProblemIntent = async (entities, extraIntents = [], sendResponse
       // Dacă camera există, actualizăm statusul
       await roomStatus.update({
         hasProblems: true,
-        problem: problemDescription
+        problem: problemDescription,
+        reportedAt: new Date()
       });
     }
 
-    // Trimitem răspunsul de succes
+    // Trimitem răspunsul de succes cu toate informațiile necesare
     sendResponse({
       intent: CHAT_INTENTS.ROOM_PROBLEM,
       type: RESPONSE_TYPES.CONFIRM,
-      message: `Problema adaugată cu succes pentru camera ${roomNumber}`,
+      message: `Problema a fost raportată cu succes pentru camera ${roomNumber}`,
       extraIntents: extraIntents || [],
       reservation: null,
-      // Adăugăm informații despre problema adăugată (opțional)
       problem: {
         roomNumber,
         problemDescription,
-        reportedAt: new Date().toISOString()
-      }
+        reportedAt: new Date().toISOString(),
+        status: roomStatus.toJSON()
+      },
     });
   } catch (error) {
     console.error('❌ Eroare la actualizarea statusului camerei:', error);
     sendResponse({
       intent: CHAT_INTENTS.ROOM_PROBLEM,
       type: RESPONSE_TYPES.ERROR,
-      message: "Nu am putut actualiza statusul.",
+      message: "Nu am putut actualiza statusul camerei. Vă rugăm să încercați din nou.",
       extraIntents: extraIntents || [],
       reservation: null
     });

@@ -248,7 +248,7 @@ const handleDeleteRoomIntent = async (entities, extraIntents = [], sendResponse)
     console.error("❌ Eroare la căutarea camerei:", error);
     sendResponse({
       intent: CHAT_INTENTS.DELETE_ROOM,
-      type: RESPONSE_TYPES.ERROR,
+     type: RESPONSE_TYPES.ERROR,
       message: "A apărut o problemă la căutarea camerei.",
       extraIntents: extraIntents || []
     });

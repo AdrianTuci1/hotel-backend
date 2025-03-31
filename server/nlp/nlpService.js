@@ -47,10 +47,11 @@ const analyzeMessage = async (message) => {
     if (normalizedMessage.startsWith(key)) {
       const intent = quickRoute[key];
       console.log(`🎯 Intenție rapidă detectată: ${intent} pentru comanda: ${key}`);
+      const entities = await extractEntities(message);
       return { 
         intent, 
         message: intentMessages[intent], 
-        entities: extractEntities(message),
+        entities,
         extraIntents: getExtraIntents(intent)
       };
     }
@@ -78,7 +79,7 @@ const analyzeMessage = async (message) => {
   }
 
   // 🔹 Extragem entitățile relevante
-  const entities = extractEntities(message);
+  const entities = await extractEntities(message);
   const extraIntents = getExtraIntents(intent);
 
   console.log("📥 Mesaj primit:", message);

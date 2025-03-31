@@ -102,7 +102,7 @@ const extractProblemDescription = (message) => {
   if (!roomNumber) return null;
 
   // Găsim poziția cuvântului cheie și a numărului camerei în mesaj
-  const problemKeywordIndex = message.indexOf(problemMatch[0]);
+  const problemKeywordIndex = message.toLowerCase().indexOf(problemMatch[0].toLowerCase());
   const roomNumberIndex = message.indexOf(roomNumber, problemKeywordIndex);
   
   // Dacă am găsit ambele elemente, extragem textul după numărul camerei
@@ -152,6 +152,22 @@ const extractEntities = async (message) => {
   const normalizedMessage = normalizeText(message);
   let entities = {};
 
+  // Verificăm dacă mesajul conține un cuvânt cheie pentru probleme
+  const hasProblemKeyword = normalizedMessage.match(problemKeywords);
+  
+  // Dacă avem un cuvânt cheie pentru probleme, procesăm mai întâi acest caz
+  if (hasProblemKeyword) {
+    const roomNumber = extractRoomNumber(message);
+    const problemDescription = extractProblemDescription(message);
+    
+    if (roomNumber && problemDescription) {
+      entities.roomNumber = roomNumber;
+      entities.problemDescription = problemDescription;
+      return entities;
+    }
+  }
+
+  // Pentru alte cazuri, continuăm cu extragerea normală a entităților
   // Extragem datele
   const extractedDates = extractDates(message);
   if (extractedDates.length > 0) entities.dates = extractedDates;

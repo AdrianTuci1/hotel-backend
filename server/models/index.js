@@ -6,6 +6,7 @@ const Report = require("./Report");
 const Invoice = require("./Invoice");
 const User = require("./User");
 const MessageHistory = require("./MessageHistory");
+const RoomStatus = require("./RoomStatus");
 
 // ✅ Configurare Sequelize
 const sequelize = new Sequelize(process.env.DATABASE_URL || 'sqlite::memory:', {
@@ -21,7 +22,8 @@ const models = {
   Report: Report(sequelize),
   Invoice: Invoice(sequelize),
   User: User(sequelize),
-  MessageHistory: MessageHistory(sequelize)
+  MessageHistory: MessageHistory(sequelize),
+  RoomStatus: RoomStatus(sequelize)
 };
 
 // ✅ Relații între tabele
