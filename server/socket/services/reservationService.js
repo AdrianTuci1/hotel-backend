@@ -118,7 +118,7 @@ const getActiveReservations = async () => {
 // 🔥 Funcție care trimite mesajul de actualizare despre rezervări către clienți
 const sendReservationsUpdateMessage = (clients, reservations, action = 'sync') => {
   const message = JSON.stringify({ 
-    type: OUTGOING_MESSAGE_TYPES.RESERVATIONS_UPDATE,
+    type: OUTGOING_MESSAGE_TYPES.RESERVATIONS,
     action: action,  // 'sync' pentru sincronizare completă, 'init' pentru inițializare
     reservations: reservations 
   });

@@ -1,5 +1,5 @@
 const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
-const { analyzeMessage } = require("../../nlp/nlpService");
+const { analyzeMessage } = require("../../nlp/core/nlpService");
 const { getIntentHandler } = require("../intentHandlers");
 
 /**
@@ -14,7 +14,9 @@ const processIntent = async (message, sendResponse) => {
   
   try {
     // Apelăm serviciul NLP pentru a obține intenția și entitățile
-    const { intent, entities, extraIntents } = await analyzeMessage(message);
+    const result = await analyzeMessage(message);
+    const { intent, entities, extraIntents } = result;
+    
     console.log(`📋 Intent detectat: ${intent}, entități:`, entities);
     
     // Verificăm dacă avem un handler pentru intenția detectată
@@ -49,7 +51,7 @@ const processIntent = async (message, sendResponse) => {
     sendResponse({
       intent: CHAT_INTENTS.DEFAULT,
       type: RESPONSE_TYPES.ERROR,
-      message: `A apărut o eroare: ${error.message}`,
+      message: "A apărut o eroare la procesarea comenzii. Vă rog să încercați din nou.",
       extraIntents: [],
       reservation: null
     });

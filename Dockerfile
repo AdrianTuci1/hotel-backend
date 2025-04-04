@@ -14,5 +14,5 @@ COPY . .
 # Expunem portul pe care rulează serverul
 EXPOSE 5001
 
-# 📌 Setăm comanda de start pentru container
-CMD ["sh", "-c", "sleep 5 && node server/seeders/demoData.js && node server/index.js"]
+# 📌 Setăm comanda de start pentru container cu opțiuni de memorie
+CMD ["sh", "-c", "sleep 5 && node server/seeders/demoData.js && node --max-old-space-size=2048 --expose-gc server/index.js"]
