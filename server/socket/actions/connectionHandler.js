@@ -2,6 +2,7 @@ const { processMessage } = require('./actionHandler');
 const { sendActiveReservationsToClient } = require('../controllers/reservationController');
 const { setupAutomationChecks } = require('../controllers/automationController');
 const { broadcastHistoryUpdate, getHistory } = require('../services/historyService');
+const { OUTGOING_MESSAGE_TYPES } = require('../utils/messageTypes');
 
 /**
  * Handler pentru conexiunile WebSocket
@@ -30,12 +31,21 @@ const handleConnection = async (ws) => {
   try {
     const history = await getHistory({ pageSize: 50 }); // Trimitem ultimele 50 de mesaje
     const message = JSON.stringify({
-      type: 'history',
+      type: OUTGOING_MESSAGE_TYPES.HISTORY,
       data: history
     });
     ws.send(message);
   } catch (error) {
     console.error('❌ Eroare la trimiterea istoricului:', error);
+    // Trimitem notificare de eroare
+    const errorMessage = JSON.stringify({
+      type: OUTGOING_MESSAGE_TYPES.NOTIFICATION,
+      data: {
+        message: 'Eroare la încărcarea istoricului',
+        severity: 'error'
+      }
+    });
+    ws.send(errorMessage);
   }
 
   // Configurăm verificările automate pentru acest client

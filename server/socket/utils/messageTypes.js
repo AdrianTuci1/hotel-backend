@@ -5,12 +5,10 @@ const INCOMING_MESSAGE_TYPES = {
 
 // 📤 Tipuri de mesaje trimise către client
 const OUTGOING_MESSAGE_TYPES = {
-  CHAT_RESPONSE: 'chat_response',
-  RESERVATIONS_UPDATE: 'reservations_update',
-  ROOMS_UPDATE: 'rooms_update',
-  POS_UPDATE: 'pos_update',
-  ERROR: 'error',
-  NOTIFICATION: 'notification'
+  CHAT: 'chat',
+  NOTIFICATION: 'notification',
+  RESERVATIONS: 'reservations',
+  HISTORY: 'history'
 };
 
 // 🎯 Tipuri de intenții pentru chat
