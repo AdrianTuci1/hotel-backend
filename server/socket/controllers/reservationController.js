@@ -15,7 +15,7 @@ const sendActiveReservationsToClient = async (ws) => {
     console.log("📤 Trimitere rezervări active către client");
     const activeReservations = await getActiveReservations();
     ws.send(JSON.stringify({
-      type: OUTGOING_MESSAGE_TYPES.RESERVATION,
+      type: OUTGOING_MESSAGE_TYPES.RESERVATIONS,
       data: {
         reservations: activeReservations,
         action: 'init'
@@ -41,7 +41,7 @@ const emitReservationsUpdate = async (clients) => {
     
     for (const client of clients) {
       client.send(JSON.stringify({
-        type: OUTGOING_MESSAGE_TYPES.RESERVATION,
+        type: OUTGOING_MESSAGE_TYPES.RESERVATIONS,
         data: {
           reservations: activeReservations,
           action: 'sync'

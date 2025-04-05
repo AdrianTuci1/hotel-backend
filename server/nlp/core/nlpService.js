@@ -71,13 +71,19 @@ async function analyzeMessage(message) {
         // Obține intențiile suplimentare
         const extraIntents = getExtraIntents(intentResult);
         
+        // Obține mesajul pentru intenție sau folosește un mesaj implicit
+        let intentMessage = "✅ Comandă procesată!";
+        if (intentMessages && typeof intentResult === 'string' && intentResult in intentMessages) {
+            intentMessage = intentMessages[intentResult];
+        }
+        
         // Creează rezultatul
         const result = {
             intent: intentResult,
             entities,
             extraIntents,
             confidence,
-            message: intentMessages[intentResult] || "✅ Comandă procesată!"
+            message: intentMessage
         };
         
         // Verifică și curăță cache-ul

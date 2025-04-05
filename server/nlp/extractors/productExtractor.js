@@ -1,14 +1,13 @@
 /**
  * Modul pentru extragerea informațiilor despre produse
  */
-const { cleanupCache } = require('../utils/memoryUtils');
-const { CACHE_SIZE_LIMIT, CACHE_TTL } = require('../config/nlpConfig');
+const { cleanupCache } = require('../utils/cacheUtils');
+const { normalizeText } = require('../utils/textUtils');
 
-// Cache pentru rezultate
+// Cache pentru rezultate cu limită de dimensiune
 const productCache = new Map();
-
-// Cache pentru rezultatele din baza de date
-const dbCache = new Map();
+const quantityCache = new Map();
+const MAX_CACHE_SIZE = 500; // Limită maximă pentru cache
 
 // Unități de măsură și sinonimele lor
 const units = {
@@ -41,181 +40,126 @@ const productShortcuts = {
 };
 
 /**
- * Normalizează textul pentru procesare
- * @param {string} text - Textul de normalizat
- * @returns {string} Textul normalizat
+ * Extrage numele produsului din mesaj
+ * @param {string} message - Mesajul din care se extrage numele
+ * @returns {string|null} Numele produsului sau null dacă nu s-a găsit
  */
-function normalizeText(text) {
-  // Validare input
-  if (!text || typeof text !== 'string') return '';
-  if (text.length > 1000) {
-    console.warn('⚠️ Message too long, truncating to 1000 characters');
-    text = text.substring(0, 1000);
+function extractProductName(message) {
+  const normalizedMessage = normalizeText(message);
+  
+  // Verifică cache
+  if (productCache.has(normalizedMessage)) {
+    return productCache.get(normalizedMessage);
   }
   
-  return text.toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-}
-
-/**
- * Extrage cantitatea și unitatea din text
- * @param {string} text - Textul din care se extrage cantitatea
- * @returns {Object} Obiect cu cantitatea și unitatea
- */
-function extractQuantity(text) {
-  const normalizedText = normalizeText(text);
+  // Curăță cache-ul dacă este necesar
+  cleanupCache(productCache, MAX_CACHE_SIZE);
   
-  // Pattern pentru cantități cu unități
-  const quantityPattern = /\b(\d+(?:\.\d+)?)\s*([a-zA-Z]+)\b/i;
-  const match = normalizedText.match(quantityPattern);
+  let productName = null;
   
-  if (match) {
-    const quantity = parseFloat(match[1]);
-    const unit = match[2].toLowerCase();
-    
-    // Verificăm dacă unitatea este validă
-    for (const [validUnit, synonyms] of Object.entries(units)) {
-      if (synonyms.includes(unit)) {
-        return { quantity, unit: validUnit };
-      }
-    }
-  }
+  // Extract product following specific keywords
+  const productAfterKeywordPatterns = [
+    /\bprodus\s+([a-z\s]+?)(?:\s+\d+|\s*$)/i,  // "produs apa plata"
+    /\badauga\s+produs\s+([a-z\s]+?)(?:\s+\d+|\s*$)/i,  // "adauga produs apa plata"
+  ];
   
-  // Pattern pentru cantități simple
-  const simpleQuantityPattern = /\b(\d+(?:\.\d+)?)\b/;
-  const simpleMatch = normalizedText.match(simpleQuantityPattern);
-  
-  if (simpleMatch) {
-    return {
-      quantity: parseFloat(simpleMatch[1]),
-      unit: 'bucata'
-    };
-  }
-  
-  return { quantity: 1, unit: 'bucata' };
-}
-
-/**
- * Extrage numele produsului din text
- * @param {string} text - Textul din care se extrage numele produsului
- * @returns {string|null} Numele produsului sau null dacă nu este găsit
- */
-function extractProductName(text) {
-  const normalizedText = normalizeText(text);
-  
-  // Verificăm mai întâi shortcut-urile
-  for (const [product, synonyms] of Object.entries(productShortcuts)) {
-    for (const synonym of synonyms) {
-      if (normalizedText.includes(synonym)) {
-        return product;
-      }
-    }
-  }
-  
-  // Pattern pentru produse cu nume compuse
-  const productPattern = /\b(?:produs|product|item)\s*:?\s*([^.,!?]+)/i;
-  const match = normalizedText.match(productPattern);
-  
-  if (match) {
-    return match[1].trim();
-  }
-  
-  return null;
-}
-
-/**
- * Extrage produsul și cantitatea din text
- * @param {string} message - Mesajul din care se extrag informațiile
- * @returns {Object} Obiect cu produsul și cantitatea
- */
-function extractProductWithQuantity(message) {
-  try {
-    // Verifică cache-ul
-    const cacheKey = message.toLowerCase().trim();
-    const cached = productCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.info;
-    }
-    
-    // Curăță cache-ul dacă este necesar
-    if (productCache.size >= CACHE_SIZE_LIMIT) {
-      cleanupCache(productCache, CACHE_SIZE_LIMIT, CACHE_TTL);
-    }
-    
-    const { quantity, unit } = extractQuantity(message);
-    const product = extractProductName(message);
-    
-    const info = {
-      product,
-      quantity,
-      unit
-    };
-    
-    // Cache rezultatul
-    productCache.set(cacheKey, {
-      info,
-      timestamp: Date.now()
-    });
-    
-    return info;
-  } catch (error) {
-    console.error('❌ Error in extractProductWithQuantity:', error);
-    return {
-      product: null,
-      quantity: 1,
-      unit: 'bucata'
-    };
-  }
-}
-
-/**
- * Extrage un item din stoc
- * @param {string} message - Mesajul din care se extrage item-ul
- * @returns {Object} Obiect cu item-ul
- */
-function extractItem(message) {
-  try {
-    // Verifică cache-ul
-    const cacheKey = message.toLowerCase().trim();
-    const cached = dbCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.item;
-    }
-    
-    // Curăță cache-ul dacă este necesar
-    if (dbCache.size >= CACHE_SIZE_LIMIT) {
-      cleanupCache(dbCache, CACHE_SIZE_LIMIT, CACHE_TTL);
-    }
-    
-    const normalizedMessage = normalizeText(message);
-    
-    // Pattern pentru item-uri din stoc
-    const itemPattern = /\b(?:item|produs|product|stoc|stock)\s*:?\s*([^.,!?]+)/i;
-    const match = normalizedMessage.match(itemPattern);
-    
+  for (const pattern of productAfterKeywordPatterns) {
+    const match = normalizedMessage.match(pattern);
     if (match) {
-      const item = match[1].trim();
-      
-      // Cache rezultatul
-      dbCache.set(cacheKey, {
-        item,
-        timestamp: Date.now()
-      });
-      
-      return item;
+      productName = match[1].trim();
+      break;
     }
-    
-    return null;
-  } catch (error) {
-    console.error('❌ Error in extractItem:', error);
-    return null;
   }
+  
+  // If no product found, try more general patterns
+  if (!productName) {
+    // Try to find product name by excluding command words and quantities
+    // First, remove common command words
+    let cleanedMessage = normalizedMessage
+      .replace(/\badauga\b/i, '')
+      .replace(/\bprodus\b/i, '')
+      .trim();
+      
+    // Then remove quantities
+    cleanedMessage = cleanedMessage.replace(/\b\d+\s*(?:buc|bucati|bucăți|bucata|bucată)?\b/i, '').trim();
+    
+    if (cleanedMessage) {
+      // Now the remaining text might be the product name
+      productName = cleanedMessage;
+    }
+  }
+  
+  // Check if product name is in shortcut list
+  if (productName && !productName.includes(' ')) {
+    for (const [key, synonyms] of Object.entries(productShortcuts)) {
+      if (synonyms.includes(productName)) {
+        productName = key;
+        break;
+      }
+    }
+  }
+  
+  // Salvează în cache
+  productCache.set(normalizedMessage, productName);
+  return productName;
+}
+
+/**
+ * Extrage cantitatea din mesaj
+ * @param {string} message - Mesajul din care se extrage cantitatea
+ * @returns {number|null} Cantitatea sau null dacă nu s-a găsit
+ */
+function extractQuantity(message) {
+  const normalizedMessage = normalizeText(message);
+  
+  // Verifică cache
+  if (quantityCache.has(normalizedMessage)) {
+    return quantityCache.get(normalizedMessage);
+  }
+  
+  // Curăță cache-ul dacă este necesar
+  cleanupCache(quantityCache, MAX_CACHE_SIZE);
+  
+  let quantity = null;
+  
+  // Check for "5 buc" pattern
+  const bucPattern = /\b(\d+)\s*(?:buc|bucati|bucăți|bucata|bucată)\b/i;
+  const bucMatch = normalizedMessage.match(bucPattern);
+  if (bucMatch) {
+    quantity = parseInt(bucMatch[1], 10);
+  } else {
+    // Check for standalone number
+    const numPattern = /\b(\d+)\b/i;
+    const numMatch = normalizedMessage.match(numPattern);
+    if (numMatch) {
+      quantity = parseInt(numMatch[1], 10);
+    }
+  }
+  
+  // Salvează în cache
+  quantityCache.set(normalizedMessage, quantity);
+  return quantity;
+}
+
+/**
+ * Extrage toate informațiile despre produs din mesaj
+ * @param {string} message - Mesajul din care se extrag informațiile
+ * @returns {Object} Obiect cu informațiile extrase
+ */
+function extractProductInfo(message) {
+  const productName = extractProductName(message);
+  const quantity = extractQuantity(message);
+  
+  return {
+    productName: productName || null,
+    quantity: quantity || null
+  };
 }
 
 module.exports = {
-  extractProductWithQuantity,
-  extractItem,
+  extractProductName,
+  extractQuantity,
+  extractProductInfo,
   productShortcuts,
   units
 }; 

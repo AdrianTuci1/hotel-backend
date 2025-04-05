@@ -1,199 +1,166 @@
 /**
  * Modul pentru extragerea informațiilor despre camere
  */
-const { cleanupCache } = require('../utils/memoryUtils');
-const { CACHE_SIZE_LIMIT, CACHE_TTL } = require('../config/nlpConfig');
+const { cleanupCache } = require('../utils/cacheUtils');
+const { normalizeText } = require('../utils/textUtils');
 
-// Cache pentru rezultate
+// Cache pentru rezultate cu limită de dimensiune
 const roomCache = new Map();
+const roomTypeCache = new Map();
+const priceCache = new Map();
+const MAX_CACHE_SIZE = 500; // Limită maximă pentru cache
 
-// Tipuri de camere și sinonimele lor
-const roomTypes = {
-  'single': ['single', 'simpla', 'simplu', 'o persoana', 'o persoană', '1 persoana', '1 persoană'],
-  'double': ['double', 'dubla', 'dublu', 'doua persoane', 'două persoane', '2 persoane'],
-  'twin': ['twin', 'twin', 'gemene', '2 paturi', 'doua paturi', 'două paturi'],
-  'triple': ['triple', 'tripla', 'triplu', 'trei persoane', '3 persoane'],
-  'suite': ['suite', 'suita', 'suită', 'apartament', 'lux', 'luxury'],
-  'family': ['family', 'familie', 'familial', 'pentru familie'],
-  'business': ['business', 'business', 'pentru business', 'pentru afaceri']
-};
-
-// Caracteristici ale camerelor și sinonimele lor
-const roomFeatures = {
-  'sea_view': ['vedere la mare', 'cu vedere la mare', 'mare view', 'sea view'],
-  'mountain_view': ['vedere la munte', 'cu vedere la munte', 'mountain view'],
-  'balcony': ['balcon', 'cu balcon', 'terasa', 'terasă', 'cu terasa', 'cu terasă'],
-  'smoking': ['fumator', 'fumători', 'cu fumat', 'smoking'],
-  'non_smoking': ['nefumator', 'nefumători', 'fara fumat', 'fără fumat', 'non smoking'],
-  'breakfast': ['mic dejun', 'cu mic dejun', 'breakfast included'],
-  'all_inclusive': ['all inclusive', 'tot inclus', 'tot inclusiv'],
-  'air_conditioning': ['aer conditionat', 'cu aer conditionat', 'ac', 'air conditioning'],
-  'minibar': ['minibar', 'cu minibar', 'frigider'],
-  'tv': ['tv', 'televizor', 'cu tv', 'cu televizor'],
-  'wifi': ['wifi', 'internet', 'wireless', 'cu wifi', 'cu internet']
-};
+// Lista tipurilor de camere valide
+const VALID_ROOM_TYPES = ['single', 'dubla', 'twin', 'tripla', 'apartament', 'suite'];
 
 /**
- * Normalizează textul pentru procesare
- * @param {string} text - Textul de normalizat
- * @returns {string} Textul normalizat
+ * Extrage numărul camerei din mesaj
+ * @param {string} message - Mesajul din care se extrage numărul
+ * @returns {string|null} Numărul camerei sau null dacă nu s-a găsit
  */
-function normalizeText(text) {
-  // Validare input
-  if (!text || typeof text !== 'string') return '';
-  if (text.length > 1000) {
-    console.warn('⚠️ Message too long, truncating to 1000 characters');
-    text = text.substring(0, 1000);
+function extractRoomNumber(message) {
+  const normalizedMessage = normalizeText(message);
+  
+  // Verifică cache
+  if (roomCache.has(normalizedMessage)) {
+    return roomCache.get(normalizedMessage);
   }
   
-  return text.toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+  // Curăță cache-ul dacă este necesar
+  cleanupCache(roomCache, MAX_CACHE_SIZE);
+  
+  // Caută numărul camerei în format cNNN sau NNN
+  let roomNumber = null;
+  
+  // Look for c + 3 digits pattern
+  const cRoomPattern = /\bc(\d{3})\b/i;
+  const cRoomMatch = normalizedMessage.match(cRoomPattern);
+  if (cRoomMatch) {
+    roomNumber = `c${cRoomMatch[1]}`;
+  } else {
+    // Look for just 3 digits which might be a room number
+    const roomPattern = /\b(\d{3})\b/i;
+    const roomMatch = normalizedMessage.match(roomPattern);
+    if (roomMatch) {
+      roomNumber = `c${roomMatch[1]}`;
+    }
+  }
+  
+  // Salvează în cache
+  roomCache.set(normalizedMessage, roomNumber);
+  return roomNumber;
 }
 
 /**
- * Extrage numărul camerei din text
- * @param {string} text - Textul din care se extrage numărul camerei
- * @returns {string|null} Numărul camerei sau null dacă nu este găsit
+ * Extrage tipul camerei din mesaj
+ * @param {string} message - Mesajul din care se extrage tipul
+ * @returns {string|null} Tipul camerei sau null dacă nu s-a găsit
  */
-function extractRoomNumber(text) {
-  const normalizedText = normalizeText(text);
+function extractRoomType(message) {
+  const normalizedMessage = normalizeText(message);
   
-  // Pattern pentru numere de cameră (1-3 cifre)
-  const roomNumberPattern = /\b(?:camera|cameră|room|cam)\s*#?\s*(\d{1,3})\b/i;
-  const match = normalizedText.match(roomNumberPattern);
-  
-  if (match) {
-    return match[1];
+  // Verifică cache
+  if (roomTypeCache.has(normalizedMessage)) {
+    return roomTypeCache.get(normalizedMessage);
   }
   
-  // Pattern pentru coduri de cameră (ex: c301)
-  const roomCodePattern = /\b([a-z]\d{3})\b/i;
-  const codeMatch = normalizedText.match(roomCodePattern);
+  // Curăță cache-ul dacă este necesar
+  cleanupCache(roomTypeCache, MAX_CACHE_SIZE);
   
-  if (codeMatch) {
-    return codeMatch[1].toUpperCase();
+  let roomType = null;
+  
+  // Try direct room type match
+  for (const type of VALID_ROOM_TYPES) {
+    if (normalizedMessage.includes(type)) {
+      roomType = type;
+      break;
+    }
   }
   
-  return null;
-}
-
-/**
- * Extrage tipul camerei din text
- * @param {string} text - Textul din care se extrage tipul camerei
- * @returns {string|null} Tipul camerei sau null dacă nu este găsit
- */
-function extractRoomType(text) {
-  const normalizedText = normalizeText(text);
-  
-  // Căutăm tipul camerei în map
-  for (const [type, synonyms] of Object.entries(roomTypes)) {
-    for (const synonym of synonyms) {
-      if (normalizedText.includes(synonym)) {
-        return type;
+  // Additional patterns if direct match failed
+  if (!roomType) {
+    const patterns = [
+      /\bcamera\s+([a-z]+)\b/i,  // "camera dubla"
+      /\b([a-z]+)\s+camera\b/i,  // "dubla camera"
+    ];
+    
+    for (const pattern of patterns) {
+      const match = normalizedMessage.match(pattern);
+      if (match) {
+        const potentialType = match[1].toLowerCase();
+        if (VALID_ROOM_TYPES.includes(potentialType)) {
+          roomType = potentialType;
+          break;
+        }
       }
     }
   }
   
-  return null;
+  // Salvează în cache
+  roomTypeCache.set(normalizedMessage, roomType);
+  return roomType;
 }
 
 /**
- * Extrage preferințele pentru cameră din text
- * @param {string} text - Textul din care se extrag preferințele
- * @returns {Array} Array cu preferințele găsite
+ * Extrage prețul din mesaj
+ * @param {string} message - Mesajul din care se extrage prețul
+ * @returns {number|null} Prețul sau null dacă nu s-a găsit
  */
-function extractPreferences(text) {
-  const normalizedText = normalizeText(text);
-  const preferences = [];
+function extractPrice(message) {
+  const normalizedMessage = normalizeText(message);
   
-  // Căutăm preferințele în map
-  for (const [feature, synonyms] of Object.entries(roomFeatures)) {
-    for (const synonym of synonyms) {
-      if (normalizedText.includes(synonym)) {
-        preferences.push(feature);
-        break;
-      }
+  // Verifică cache
+  if (priceCache.has(normalizedMessage)) {
+    return priceCache.get(normalizedMessage);
+  }
+  
+  // Curăță cache-ul dacă este necesar
+  cleanupCache(priceCache, MAX_CACHE_SIZE);
+  
+  // Caută prețul în format numeric urmat opțional de "lei" sau "ron"
+  let price = null;
+  
+  // Look for number followed by lei/ron
+  const leiPattern = /\b(\d+)\s*(?:lei|ron)\b/i;
+  const leiMatch = normalizedMessage.match(leiPattern);
+  if (leiMatch) {
+    price = parseInt(leiMatch[1], 10);
+  } else {
+    // If no explicit price with currency, try to find a number
+    const numPattern = /\b(\d+)\b/gi; // Make it global for matchAll
+    const matches = normalizedMessage.match(numPattern);
+    if (matches && matches.length > 0) {
+      // Prefer the last number in the message, which is often the price
+      price = parseInt(matches[matches.length - 1], 10);
     }
   }
   
-  return preferences;
+  // Salvează în cache
+  priceCache.set(normalizedMessage, price);
+  return price;
 }
 
 /**
- * Extrage descrierea problemei din text
- * @param {string} text - Textul din care se extrage descrierea problemei
- * @returns {string|null} Descrierea problemei sau null dacă nu este găsită
- */
-function extractProblem(text) {
-  const normalizedText = normalizeText(text);
-  
-  // Pattern pentru probleme
-  const problemPattern = /\b(?:problema|probleme|defect|defecte|stricat|stricata|stricată|nu merge|nu funcționează|nu functioneaza)\b\s*:?\s*([^.,!?]+)/i;
-  const match = normalizedText.match(problemPattern);
-  
-  if (match) {
-    return match[1].trim();
-  }
-  
-  return null;
-}
-
-/**
- * Extrage toate informațiile despre cameră din text
+ * Extrage toate informațiile despre cameră din mesaj
  * @param {string} message - Mesajul din care se extrag informațiile
  * @returns {Object} Obiect cu informațiile extrase
  */
 function extractRoomInfo(message) {
-  try {
-    // Verifică cache-ul
-    const cacheKey = message.toLowerCase().trim();
-    const cached = roomCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      return cached.info;
-    }
-    
-    // Curăță cache-ul dacă este necesar
-    if (roomCache.size >= CACHE_SIZE_LIMIT) {
-      cleanupCache(roomCache, CACHE_SIZE_LIMIT, CACHE_TTL);
-    }
-    
-    const roomNumber = extractRoomNumber(message);
-    const roomType = extractRoomType(message);
-    const preferences = extractPreferences(message);
-    const problem = extractProblem(message);
-    
-    const info = {
-      roomNumber,
-      roomType,
-      preferences: preferences.length > 0 ? preferences : null,
-      problem
-    };
-    
-    // Cache rezultatul
-    roomCache.set(cacheKey, {
-      info,
-      timestamp: Date.now()
-    });
-    
-    return info;
-  } catch (error) {
-    console.error('❌ Error in extractRoomInfo:', error);
-    return {
-      roomNumber: null,
-      roomType: null,
-      preferences: null,
-      problem: null
-    };
-  }
+  const roomNumber = extractRoomNumber(message);
+  const roomType = extractRoomType(message);
+  const price = extractPrice(message);
+  
+  return {
+    roomNumber: roomNumber || null,
+    roomType: roomType || null,
+    price: price || null
+  };
 }
 
 module.exports = {
-  extractRoomInfo,
   extractRoomNumber,
   extractRoomType,
-  extractPreferences,
-  extractProblem,
-  roomTypes,
-  roomFeatures
+  extractPrice,
+  extractRoomInfo,
+  roomTypes: VALID_ROOM_TYPES
 }; 

@@ -23,6 +23,10 @@ const CHAT_INTENTS = {
   CREATE_ROOM: 'create_room',
   MODIFY_ROOM: 'modify_room',
   ROOM_PROBLEM: 'room_problem',
+  ADD_ROOM: 'add_room',
+  
+  // Produse
+  ADD_PRODUCT: 'add_product',
   
   // Rapoarte și Facturi
   SHOW_REPORTS: 'show_reports',
