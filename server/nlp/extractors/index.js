@@ -85,53 +85,6 @@ function extractEntities(message, intent = null) {
       return {};
     }
     
-    // Test case for reservation
-    if (message === 'rezervare Andrei Anton dubla 16-18 apr' && 
-        (intent === CHAT_INTENTS.RESERVATION || intent === 'reservation')) {
-      return {
-        fullName: 'Andrei Anton',
-        roomType: 'dubla',
-        startDate: '2024-04-16',
-        endDate: '2024-04-18'
-      };
-    }
-    
-    // Test case for add room with price
-    if (message === 'adauga camera c301 twin 600 lei' && 
-        (intent === CHAT_INTENTS.ADD_ROOM || intent === 'add_room')) {
-      return {
-        roomNumber: 'c301',
-        roomType: 'twin',
-        price: 600
-      };
-    }
-    
-    // Test case for add room without price
-    if (message === 'adauga camera c301 twin' && 
-        (intent === CHAT_INTENTS.ADD_ROOM || intent === 'add_room')) {
-      return {
-        roomNumber: 'c301',
-        roomType: 'twin'
-      };
-    }
-    
-    // Test case for add product with quantity
-    if (message === 'adauga produs apa plata 5 buc' && 
-        (intent === CHAT_INTENTS.ADD_PRODUCT || intent === 'add_product')) {
-      return {
-        productName: 'apa plata',
-        quantity: 5
-      };
-    }
-    
-    // Test case for add product without quantity
-    if (message === 'adauga apa plata' && 
-        (intent === CHAT_INTENTS.ADD_PRODUCT || intent === 'add_product')) {
-      return {
-        productName: 'apa plata'
-      };
-    }
-
     // Verifică cache
     const cacheKey = `${message}:${intent || 'no_intent'}`;
     if (entityCache.has(cacheKey)) {
@@ -200,6 +153,25 @@ function extractEntities(message, intent = null) {
         if (modifyDates?.endDate || context.lastEntities?.endDate) {
           entities.endDate = modifyDates?.endDate || context.lastEntities.endDate;
         }
+        break;
+        
+      case CHAT_INTENTS.ADD_PHONE:
+      case 'add_phone':
+        const phoneForRoom = extractRoomInfo(message);
+        const phone = extractPhone(message);
+        
+        if (phoneForRoom?.roomNumber) entities.roomNumber = phoneForRoom.roomNumber;
+        if (phone) entities.phoneNumber = phone;
+        if (phoneForRoom?.roomType) entities.roomType = phoneForRoom.roomType;
+        break;
+        
+      case CHAT_INTENTS.ROOM_PROBLEM:
+      case 'room_problem':
+        const problemRoom = extractRoomInfo(message);
+        
+        if (problemRoom?.roomNumber) entities.roomNumber = problemRoom.roomNumber;
+        const problemDescription = message.replace(/problema|c\d{3}|\b\d{3}\b/gi, '').trim();
+        if (problemDescription) entities.problemDescription = problemDescription;
         break;
     }
 

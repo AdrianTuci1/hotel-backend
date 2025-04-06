@@ -3,6 +3,51 @@
 ## Overview
 This document describes all message types used in the WebSocket communication between the server and clients.
 
+## Comunicare Server -> Client
+
+Serverul comunică cu clientul folosind **mesaje WebSocket standard**, nu evenimente Socket.IO specifice (cu excepția unui caz de eroare descris mai jos).
+
+### Primirea Mesajelor
+
+Clientul trebuie să asculte evenimentul `message` pe conexiunea WebSocket. Datele primite (`event.data`) vor fi un string JSON. După parsare (`JSON.parse(event.data)`), se obține un obiect cu o singură cheie: `response`.
+
+```javascript
+// Exemplu client-side
+const socket = new WebSocket('ws://your-server-address'); // Endpoint-ul WebSocket
+
+socket.onmessage = (event) => {
+  try {
+    const data = JSON.parse(event.data);
+    if (data && data.response) {
+      handleServerResponse(data.response);
+    } else {
+      console.warn("Mesaj primit de la server cu format neașteptat:", data);
+      // Verificăm formatul de eroare standard trimis prin `sendResponse`
+      if (data && data.response && data.response.type === 'error') {
+         console.error("Eroare de la server (via response):", data.response.message);
+      }
+    }
+  } catch (error) {
+    console.error("Eroare la parsarea mesajului de la server:", error);
+  }
+};
+
+function handleServerResponse(response) {
+  console.log("Răspuns primit:", response);
+  // Procesează obiectul 'response'
+}
+```
+
+### Structura Generală a Mesajului Primit (`event.data` parsat)
+
+```json
+{
+  "response": {
+    // ... conținutul răspunsului detaliat în secțiunea 'Chat Messages' ...
+  }
+}
+```
+
 ## Message Categories
 
 ### 1. Incoming Messages
@@ -18,19 +63,24 @@ Messages received from clients.
 ### 2. Outgoing Messages
 Messages sent to clients.
 
-#### 2.1 Chat Messages
+#### 2.1 Chat Messages (via `socket.send`)
+Aceste mesaje sunt trimise prin `socket.send` și conțin obiectul `response` descris mai jos.
+
+**Structura Obiectului `response`:**
+
 ```json
 {
-  "type": "chat",
-  "response": {
-    "intent": "string",
-    "type": "string",
-    "message": "string",
-    "extraIntents": ["string"],
-    "reservation": null
-  }
+  "intent": "string (Vezi secțiunea Chat Intents)",
+  "type": "string (Vezi secțiunea Response Types)",
+  "message": "string (Mesaj text pentru utilizator)",
+  "extraIntents": ["string (Intenții suplimentare detectate)"],
+  "options": [{} (Opțional - Array de opțiuni/acțiuni sugerate, structura depinde de handler)"],
+  "results": "any (Opțional - Rezultatele specifice cererii, structura depinde de handler)",
+  "followUpNeeded": "boolean (Opțional - Indică dacă se așteaptă un răspuns)",
+  "reservation": "{} | null (Opțional - Detalii rezervare, structura depinde de handler)"
 }
 ```
+**Notă Importantă:** Structura exactă a câmpurilor `options`, `results`, și `reservation` depinde de *handler*-ul specific intenției apelat în `chatService.js`. Clientul trebuie să fie pregătit să gestioneze diferite formate pentru aceste câmpuri în funcție de `intent` și `type`.
 
 #### 2.2 Notifications
 ```json

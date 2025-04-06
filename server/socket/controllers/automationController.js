@@ -45,13 +45,31 @@ const handleWhatsAppMessage = async (ws) => {
       type: OUTGOING_MESSAGE_TYPES.NOTIFICATION,
       notification: {
         title: "Verificare mesaje WhatsApp",
-        message: result.result?.success 
-          ? `Rezervare creată automat pentru ${result.data.guestName}` 
-          : (result.result?.message || "Nu au fost găsite mesaje noi"),
+        message: result.displayMessage,
         type: "whatsapp_message",
-        data: result
+        data: {
+          ...result,
+          action: result.requiresIntervention ? "requires_intervention" : "auto_processed",
+          buttons: result.requiresIntervention ? [
+            {
+              text: "Nu necesită intervenție",
+              action: "mark_no_intervention_needed"
+            }
+          ] : []
+        }
       }
     }));
+
+    // Dacă avem o intrare în istoric, o trimitem și ca update separat
+    if (result.historyEntry) {
+      ws.send(JSON.stringify({
+        type: OUTGOING_MESSAGE_TYPES.HISTORY,
+        data: {
+          action: "add",
+          item: result.historyEntry
+        }
+      }));
+    }
   } catch (error) {
     console.error("❌ Eroare la manipularea verificării mesajelor WhatsApp:", error);
     ws.send(JSON.stringify({

@@ -10,8 +10,28 @@ const { getReservationByRoomAndDate } = require("../services/reservationService"
 const findReservationByRoomAndDate = async (entities, extraIntents = [], sendResponse) => {
   console.log('🔍 Căutare rezervare existentă cu entități:', entities);
   
+  // Extragem corect numărul camerei - poate fi direct string sau obiect cu proprietatea value
+  const roomNumber = typeof entities.roomNumber === 'object' && entities.roomNumber.value 
+    ? entities.roomNumber.value 
+    : entities.roomNumber;
+    
+  // Extragem data de început - poate fi direct în entități sau în array-ul dates
+  let date = null;
+  
+  // Verificăm dacă avem data direct în entități
+  if (entities.startDate) {
+    date = typeof entities.startDate === 'object' ? entities.startDate.value : entities.startDate;
+  }
+  
+  // Verificăm dacă avem data în formatul dates array
+  if (!date && entities.dates && entities.dates.length > 0 && entities.dates[0].startDate) {
+    date = typeof entities.dates[0].startDate === 'object' 
+      ? entities.dates[0].startDate.value 
+      : entities.dates[0].startDate;
+  }
+  
   // Verificăm dacă avem numărul camerei
-  if (!entities.roomNumber) {
+  if (!roomNumber) {
     sendResponse({
       intent: CHAT_INTENTS.MODIFY_RESERVATION,
       type: RESPONSE_TYPES.ERROR,
@@ -23,7 +43,7 @@ const findReservationByRoomAndDate = async (entities, extraIntents = [], sendRes
   }
 
   // Verificăm dacă avem o dată
-  if (!entities.dates || !entities.dates.length || !entities.dates[0].startDate) {
+  if (!date) {
     sendResponse({
       intent: CHAT_INTENTS.MODIFY_RESERVATION,
       type: RESPONSE_TYPES.ERROR,
@@ -33,14 +53,6 @@ const findReservationByRoomAndDate = async (entities, extraIntents = [], sendRes
     });
     return;
   }
-
-  // Extragem corect numărul camerei - poate fi direct string sau obiect cu proprietatea value
-  const roomNumber = typeof entities.roomNumber === 'object' && entities.roomNumber.value 
-    ? entities.roomNumber.value 
-    : entities.roomNumber;
-
-  // Extragem corect data - poate fi direct string sau obiect cu proprietatea value
-  const date = entities.dates[0].startDate.value || entities.dates[0].startDate;
 
   try {
     console.log(`🔍 Căutare rezervare pentru camera ${roomNumber} la data ${date}`);

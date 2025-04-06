@@ -239,17 +239,52 @@ const processWhatsAppMessage = async () => {
     // Generăm mesajul de confirmare pentru client
     const confirmationMessage = simulatedOpenAIResponses.confirmationMessage;
     
+    // Adăugăm în istoric
+    const historyEntry = {
+      type: "whatsapp_message",
+      action: result.success ? "reservation_created" : "reservation_failed",
+      content: {
+        guestName: extractedData.guestName,
+        roomNumber: result.reservation?.room,
+        startDate: extractedData.startDate,
+        endDate: extractedData.endDate,
+        success: result.success,
+        message: result.message
+      },
+      metadata: {
+        phone: extractedData.phone,
+        email: extractedData.email,
+        lastMessages: [
+          simulatedWhatsAppMessage.message,
+          "Mesaj anterior 1",
+          "Mesaj anterior 2"
+        ]
+      },
+      createdAt: new Date()
+    };
+
+    // Adăugăm în istoric (aici ar trebui să folosim un serviciu de istoric)
+    // await addToHistory(historyEntry);
+    
     return {
       type: "whatsapp_message",
       data: extractedData,
       result,
-      confirmationMessage
+      confirmationMessage,
+      historyEntry,
+      displayMessage: result.success 
+        ? `Am încheiat cu succes o rezervare în data de ${new Date().toLocaleDateString()} la camera ${result.reservation?.room}`
+        : "Aveți o solicitare pe WhatsApp care necesită intervenția dumneavoastră.",
+      requiresIntervention: !result.success,
+      lastMessages: historyEntry.metadata.lastMessages
     };
   } catch (error) {
     console.error("❌ Eroare la procesarea mesajului WhatsApp:", error);
     return {
       type: "whatsapp_message",
-      error: error.message
+      error: error.message,
+      displayMessage: "Aveți o solicitare pe WhatsApp care necesită intervenția dumneavoastră.",
+      requiresIntervention: true
     };
   }
 };

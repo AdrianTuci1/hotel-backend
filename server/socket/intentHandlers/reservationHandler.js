@@ -1,4 +1,3 @@
-const { getAvailableRooms } = require("../../utils/roomUtils");
 const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
 
 /**
@@ -65,8 +64,8 @@ const checkMissingEntityReservation = (entities) => {
     return "Nu am putut identifica detaliile necesare pentru rezervare. Te rog să specifici camera și perioada.";
   }
 
-  // Verificam structura pentru nume - poate fi fie string direct sau un obiect cu valoare
-  if(!entities.name) {
+  // Verificăm dacă avem numele clientului
+  if (!entities.fullName) {
     return "Te rog să specifici numele clientului pentru rezervare.";
   }
 
@@ -79,19 +78,38 @@ const checkMissingEntityReservation = (entities) => {
  * @returns {Object} - Valorile extrase
  */
 const getEntityValues = (entities) => {
-  // Extragem numele, care poate fi fie un string direct, fie un obiect cu o proprietate value
-  const fullName = typeof entities.name === 'object' ? entities.name.value : entities.name;
+  // Extragem numele, care poate fi fie string direct, fie un obiect cu o proprietate value
+  const fullName = typeof entities.fullName === 'object' ? entities.fullName.value : entities.fullName;
   
   // Extragem tipul de cameră
-  const roomType = entities.roomType;
+  const roomType = typeof entities.roomType === 'object' ? entities.roomType.value : entities.roomType;
   
   // Extragem datele dacă există
   let startDate = null;
   let endDate = null;
   
-  if (entities.dates && entities.dates.length > 0) {
-    startDate = entities.dates[0].startDate;
-    endDate = entities.dates[0].endDate;
+  // Verificăm dacă avem date direct în entități
+  if (entities.startDate) {
+    startDate = typeof entities.startDate === 'object' ? entities.startDate.value : entities.startDate;
+  }
+  
+  if (entities.endDate) {
+    endDate = typeof entities.endDate === 'object' ? entities.endDate.value : entities.endDate;
+  }
+  
+  // Verificăm dacă avem date în formatul dates array
+  if ((!startDate || !endDate) && entities.dates && entities.dates.length > 0) {
+    if (!startDate && entities.dates[0].startDate) {
+      startDate = typeof entities.dates[0].startDate === 'object' 
+        ? entities.dates[0].startDate.value 
+        : entities.dates[0].startDate;
+    }
+    
+    if (!endDate && entities.dates[0].endDate) {
+      endDate = typeof entities.dates[0].endDate === 'object' 
+        ? entities.dates[0].endDate.value 
+        : entities.dates[0].endDate;
+    }
   }
   
   return { startDate, endDate, fullName, roomType };

@@ -61,6 +61,28 @@ describe('Entity Extraction Tests', () => {
     });
   });
 
+  describe('Add Phone Intent', () => {
+    test('should extract room number and phone number', () => {
+      const message = 'tel c104 16 apr 07984893020';
+      const result = extractEntities(message, CHAT_INTENTS.ADD_PHONE);
+      expect(result).toEqual({
+        roomNumber: 'c104',
+        phoneNumber: '07984893020'
+      });
+    });
+  });
+
+  describe('Room Problem Intent', () => {
+    test('should extract room number and problem description', () => {
+      const message = 'problema c301 televizor defect';
+      const result = extractEntities(message, CHAT_INTENTS.ROOM_PROBLEM);
+      expect(result).toEqual({
+        roomNumber: 'c301',
+        problemDescription: 'televizor defect'
+      });
+    });
+  });
+
   describe('Context and Cache', () => {
     test('should use context for missing entities', () => {
       // First message sets context
