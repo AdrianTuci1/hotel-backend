@@ -3,7 +3,7 @@ const { handleShowCalendarIntent, handleShowStockIntent, handleShowReportsIntent
 const { handleReservationIntent } = require("./reservationHandler");
 const { findReservationByRoomAndDate } = require("./modifyReservationHandler");
 const { handleAddPhoneIntent } = require("./phoneHandler");
-const { handleCreateRoomIntent, handleModifyRoomIntent } = require("./roomHandler");
+const { handleCreateRoomIntent, handleModifyRoomIntent, handleDeleteRoomIntent } = require("./roomHandler");
 const { handleSellProductIntent } = require("./posHandler");
 const { handleDefaultIntent } = require("./defaultHandler");
 const { handleRoomProblemIntent } = require ("./problemHandler")
@@ -11,31 +11,30 @@ const { handleRoomProblemIntent } = require ("./problemHandler")
 /**
  * Map de handlere pentru fiecare intenție
  */
-
 const intentHandlers = {
+  // Intenții de chat (UI Actions)
+  [CHAT_INTENTS.SHOW_CALENDAR]: handleShowCalendarIntent,
+  [CHAT_INTENTS.SHOW_STOCK]: handleShowStockIntent,
+  [CHAT_INTENTS.SHOW_REPORTS]: handleShowReportsIntent,
+  [CHAT_INTENTS.SHOW_INVOICES]: handleShowInvoicesIntent,
+  [CHAT_INTENTS.SHOW_POS]: handleShowPosIntent,
+  
+  // Rezervări & POS (Info Responses -> Overlays/Forms)
+  [CHAT_INTENTS.RESERVATION]: handleReservationIntent,
+  [CHAT_INTENTS.MODIFY_RESERVATION]: findReservationByRoomAndDate,
+  [CHAT_INTENTS.SELL_PRODUCT]: handleSellProductIntent,
+  
+  // Camere (Info/Confirmation Responses -> Overlays/Forms/Confirmations)
+  [CHAT_INTENTS.CREATE_ROOM]: handleCreateRoomIntent,
+  [CHAT_INTENTS.MODIFY_ROOM]: handleModifyRoomIntent,
+  [CHAT_INTENTS.DELETE_ROOM]: handleDeleteRoomIntent,
+  [CHAT_INTENTS.ROOM_PROBLEM]: handleRoomProblemIntent,
+  
+  // Phone (Confirmation Response)
+  [CHAT_INTENTS.ADD_PHONE]: handleAddPhoneIntent,
 
-  // Intenții de chat
-  [CHAT_INTENTS.SHOW_CALENDAR]: handleShowCalendarIntent, //TYPE: RESPONSE_TYPES.ACTION
-  [CHAT_INTENTS.SHOW_STOCK]: handleShowStockIntent, //TYPE: RESPONSE_TYPES.ACTION
-  [CHAT_INTENTS.SHOW_REPORTS]: handleShowReportsIntent, //TYPE: RESPONSE_TYPES.ACTION 
-  [CHAT_INTENTS.SHOW_INVOICES]: handleShowInvoicesIntent, //TYPE: RESPONSE_TYPES.ACTION
-  [CHAT_INTENTS.SHOW_POS]: handleShowPosIntent, //TYPE: RESPONSE_TYPES.ACTION
-  
-  // Rezervări
-  [CHAT_INTENTS.RESERVATION]: handleReservationIntent, //TYPE: RESPONSE_TYPES.INFO  
-  [CHAT_INTENTS.MODIFY_RESERVATION]: findReservationByRoomAndDate, //TYPE: RESPONSE_TYPES.INFO
-  [CHAT_INTENTS.ADD_PHONE]: handleAddPhoneIntent, //TYPE: RESPONSE_TYPES.CONFIRM
-
-  // Camere
-  [CHAT_INTENTS.CREATE_ROOM]: handleCreateRoomIntent, //TYPE: RESPONSE_TYPES.ROOM
-  [CHAT_INTENTS.MODIFY_ROOM]: handleModifyRoomIntent, //TYPE: RESPONSE_TYPES.ROOM
-  [CHAT_INTENTS.ROOM_PROBLEM]: handleRoomProblemIntent, //TYPE: RESPONSE_TYPES.ROOM
-  
-  // POS și Stoc
-  [CHAT_INTENTS.SELL_PRODUCT]: handleSellProductIntent, //TYPE: RESPONSE_TYPES.POS
-  
-  // Intenție implicită pentru cazurile necunoscute
-  [CHAT_INTENTS.DEFAULT]: handleDefaultIntent, //TYPE: RESPONSE_TYPES.ACTION
+  // Default / Fallback
+  [CHAT_INTENTS.DEFAULT]: handleDefaultIntent,
   [CHAT_INTENTS.UNKNOWN]: handleDefaultIntent
 };
 
@@ -45,7 +44,8 @@ const intentHandlers = {
  * @returns {Function|null} - Handlerul pentru intenția specificată sau null dacă nu există
  */
 const getIntentHandler = (intent) => {
-  return intentHandlers[intent] || handleDefaultIntent;
+  // Return the handler function directly
+  return intentHandlers[intent] || intentHandlers[CHAT_INTENTS.DEFAULT];
 };
 
 module.exports = {

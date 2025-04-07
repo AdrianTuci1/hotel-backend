@@ -1,44 +1,32 @@
 const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
+const {
+  sendOpenPosForSale,
+  sendErrorResponse
+} = require('../utils/uiResponder');
 
 /**
  * Handler pentru intenția de vânzare a unui produs
  * @param {Object} entities - Entitățile extrase din mesaj
- * @param {Array} extraIntents - Intențiile adiționale detectate
  * @param {Function} sendResponse - Funcția de callback pentru trimiterea răspunsului
  */
-const handleSellProductIntent = (entities, extraIntents = [], sendResponse) => {
+const handleSellProductIntent = (entities, sendResponse) => {
   console.log('🛒 Handler vânzare produs apelat cu entități:', entities);
   
   if (!entities.productName) {
-    sendResponse({
-      intent: CHAT_INTENTS.SELL_PRODUCT,
-      type: RESPONSE_TYPES.ERROR,
-      message: "Te rog să specifici ce produs dorești să vinzi.",
-      extraIntents: extraIntents || [],
-      reservation: null
-    });
+    sendErrorResponse(sendResponse, CHAT_INTENTS.SELL_PRODUCT, "Te rog să specifici ce produs dorești să vinzi.");
     return;
   }
 
-  const productName = entities.productName.value;
+  const productName = typeof entities.productName === 'object' ? entities.productName.value : entities.productName;
   const quantity = entities.quantity?.value || 1;
   
-  // Procesăm datele și construim răspunsul
-  const response = {
-    intent: CHAT_INTENTS.SELL_PRODUCT,
-    type: RESPONSE_TYPES.ACTION,
-    message: `Se deschide modulul POS pentru vânzarea produsului ${productName} (cantitate: ${quantity}).`,
-    extraIntents: extraIntents || [],
-    reservation: null,
-    // Adăugăm informații specifice pentru POS
-    pos: {
+  const posData = {
       productName,
       quantity
-    }
   };
-  
-  // Trimitem răspunsul prin callback
-  sendResponse(response);
+
+  // Trimitem răspunsul prin callback centralizat
+  sendOpenPosForSale(sendResponse, posData);
 };
 
 module.exports = {

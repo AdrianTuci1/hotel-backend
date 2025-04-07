@@ -1,23 +1,20 @@
 const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
+const {
+  sendOpenNewReservationOverlay,
+  sendErrorResponse
+} = require('../utils/uiResponder');
 
 /**
  * Handler pentru rezervare nou - deschide formularul pentru o rezervare nouă
  * @param {Object} entities - Entitățile extrase din mesaj
- * @param {Array} extraIntents - Intențiile adiționale detectate
  * @param {Function} sendResponse - Funcția de callback pentru trimiterea răspunsului
  */
-const handleReservationIntent = (entities, extraIntents = [], sendResponse) => {
+const handleReservationIntent = (entities, sendResponse) => {
   console.log('🏨 Handler rezervare apelat cu entități:', entities);
   
-  const missingEntity = checkMissingEntityReservation(entities);
-  if (missingEntity) {
-    sendResponse({
-      intent: CHAT_INTENTS.RESERVATION,
-      type: RESPONSE_TYPES.ERROR,
-      message: missingEntity,
-      extraIntents: extraIntents || [],
-      reservation: null
-    });
+  const missingEntityMessage = checkMissingEntityReservation(entities);
+  if (missingEntityMessage) {
+    sendErrorResponse(sendResponse, CHAT_INTENTS.RESERVATION, missingEntityMessage);
     return;
   }
 
@@ -36,22 +33,15 @@ const handleReservationIntent = (entities, extraIntents = [], sendResponse) => {
     finalEndDate = tomorrow.toISOString().split('T')[0]; // Format YYYY-MM-DD
   }
 
-  // Procesăm datele și construim răspunsul
-  const response = {
-    intent: CHAT_INTENTS.RESERVATION,
-    type: RESPONSE_TYPES.INFO,
-    message: `Se deschide formularul pentru o rezervare nouă pentru ${fullName} de la ${finalStartDate} până la ${finalEndDate}`,
-    extraIntents: extraIntents || [],
-    reservation: {
+  const reservationData = {
       fullName,
       roomType,
       startDate: finalStartDate,
       endDate: finalEndDate
-    }
   };
 
-  // Trimitem răspunsul prin callback
-  sendResponse(response);
+  // Trimitem răspunsul prin callback centralizat
+  sendOpenNewReservationOverlay(sendResponse, reservationData);
 };
 
 /**

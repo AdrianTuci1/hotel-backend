@@ -22,6 +22,7 @@ const CHAT_INTENTS = {
   // Camere
   CREATE_ROOM: 'create_room',
   MODIFY_ROOM: 'modify_room',
+  DELETE_ROOM: 'delete_room',
   ROOM_PROBLEM: 'room_problem',
   ADD_ROOM: 'add_room',
   
@@ -46,14 +47,11 @@ const CHAT_INTENTS = {
   DEFAULT: 'default'
 };
 
-// 📝 Tipuri de răspunsuri pentru chat
+// 📝 Tipuri de răspunsuri pentru chat (Refactored)
 const RESPONSE_TYPES = {
-  CONFIRM: 'confirm',
-  POS: 'pos',
-  ROOM: 'room',
-  ERROR: 'error',
-  ACTION: 'action',
-  INFO: 'info'
+  SECONDARY: 'secondary', // Opens a secondary menu/view
+  OVERLAY: 'overlay',   // Opens an overlay/modal/form with data
+  CHAT: 'chat'        // Sends a simple text message to the chat interface
 };
 
 module.exports = {
