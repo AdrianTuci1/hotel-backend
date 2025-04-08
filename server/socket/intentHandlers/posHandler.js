@@ -1,8 +1,18 @@
-const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
+const { CHAT_INTENTS /*, RESPONSE_TYPES */ } = require("../utils/messageTypes");
 const {
   sendOpenPosForSale,
   sendErrorResponse
 } = require('../utils/uiResponder');
+
+/**
+ * Helper function to extract entity values.
+ * @param {Object} entities - The extracted entities object.
+ * @returns {Object} An object containing extracted values (productName, quantity).
+ */
+const getEntityValues = (entities) => ({
+    productName: entities.product?.values[0]?.value || entities.productName?.values[0]?.value,
+    quantity: entities.quantity?.values[0]?.value
+});
 
 /**
  * Handler pentru intenția de vânzare a unui produs
@@ -12,18 +22,21 @@ const {
 const handleSellProductIntent = (entities, sendResponse) => {
   console.log('🛒 Handler vânzare produs apelat cu entități:', entities);
   
-  if (!entities.productName) {
+  const { productName, quantity } = getEntityValues(entities);
+
+  if (!productName) {
     sendErrorResponse(sendResponse, CHAT_INTENTS.SELL_PRODUCT, "Te rog să specifici ce produs dorești să vinzi.");
     return;
   }
 
-  const productName = typeof entities.productName === 'object' ? entities.productName.value : entities.productName;
-  const quantity = entities.quantity?.value || 1;
-  
   const posData = {
-      productName,
-      quantity
+      productName: String(productName),
+      quantity: quantity ? parseInt(quantity, 10) : 1 // Default to 1 if not specified
   };
+
+  if (isNaN(posData.quantity) || posData.quantity <= 0) {
+    posData.quantity = 1; // Ensure quantity is a positive integer
+  }
 
   // Trimitem răspunsul prin callback centralizat
   sendOpenPosForSale(sendResponse, posData);

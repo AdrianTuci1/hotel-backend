@@ -1,4 +1,4 @@
-const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
+const { CHAT_INTENTS /*, RESPONSE_TYPES */ } = require("../utils/messageTypes");
 const { Room } = require("../../models");
 const {
   sendCreateRoomResponse,
@@ -11,6 +11,15 @@ const {
 const extractEntityValue = (entity) => {
   if (entity === null || entity === undefined) return null;
   return typeof entity === 'object' && entity.value !== undefined ? entity.value : entity;
+};
+
+/**
+ * Check if a value is a valid number.
+ * @param {*} value - The value to check.
+ * @returns {boolean} True if it's a valid number, false otherwise.
+ */
+const isValidNumber = (value) => {
+    return value !== null && value !== '' && !isNaN(Number(value));
 };
 
 /**
@@ -55,7 +64,7 @@ const handleCreateRoomIntent = async (entities, sendResponse) => {
       const roomData = {
           number: String(roomNumber), // Asigurăm string
           type: String(roomType),     // Asigurăm string
-          price: price || 0,        // Preț implicit 0 dacă nu e specificat
+          price: isValidNumber(price) ? Number(price) : null,
       };
       // Nu facem crearea propriu-zisă, doar returnăm datele pentru API
       sendCreateRoomResponse(sendResponse, roomData);
@@ -107,7 +116,7 @@ const handleModifyRoomIntent = async (entities, sendResponse) => {
           number: room.number, // Folosim numărul existent
           // Folosim valorile noi dacă sunt specificate, altfel păstrăm cele existente
           type: roomType ? String(roomType) : room.type, 
-          price: price !== null ? price : room.price, // Păstrăm prețul existent dacă cel nou e null
+          price: isValidNumber(price) ? Number(price) : (isValidNumber(room.price) ? room.price : null), // Păstrăm prețul existent dacă cel nou e null
       };
       // Returnăm datele pentru API
       sendModifyRoomResponse(sendResponse, roomData);

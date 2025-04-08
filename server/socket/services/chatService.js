@@ -1,6 +1,9 @@
-const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
+const { CHAT_INTENTS } = require("../utils/messageTypes");
 const { analyzeMessage } = require("../../nlp/core/nlpService");
 const { getIntentHandler } = require("../intentHandlers");
+const { sendDefaultResponse } = require("../utils/uiResponder");
+const { extractEntities } = require("../../nlp/entityExtractor");
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * Procesează un mesaj de chat și returnează răspunsul potrivit
@@ -58,6 +61,49 @@ const processIntent = async (message, sendResponse) => {
   }
 };
 
+const processMessage = async (message, sendResponse) => {
+  console.log(`📨 Procesare mesaj: "${message}"`);
+
+  try {
+    // 1. Extrage entitățile din mesaj
+    const { intent, entities } = await extractEntities(message);
+    console.log(`🔍 Intent detectat: ${intent}, Entități:`, entities);
+
+    // 2. Găsește handler-ul potrivit pentru intenție
+    const handler = getIntentHandler(intent);
+
+    if (handler) {
+      // 3. Apelează handler-ul specific intenției
+      console.log(`🚀 Apelare handler pentru intent: ${intent}`);
+      await handler(entities, sendResponse);
+    } else {
+      // 4. Dacă nu există handler, trimite răspunsul default
+      console.warn(`🤷‍♂️ Nu s-a găsit handler pentru intent: ${intent}. Trimitere răspuns default.`);
+      sendDefaultResponse(sendResponse);
+    }
+  } catch (error) {
+    console.error("❌ Eroare majoră în procesarea mesajului:", error);
+    // Trimite un mesaj de eroare general folosind formatul HISTORY
+    sendResponse({
+      type: OUTGOING_MESSAGE_TYPES.HISTORY,
+      data: {
+        items: [
+          {
+            id: uuidv4(),
+            entryType: 'message',
+            timestamp: new Date().toISOString(),
+            payload: {
+              intent: CHAT_INTENTS.DEFAULT,
+              message: "Oops! A apărut o eroare internă. Vă rugăm să încercați din nou."
+            }
+          }
+        ]
+      }
+    });
+  }
+};
+
 module.exports = {
-  processIntent
+  processIntent,
+  processMessage
 }; 

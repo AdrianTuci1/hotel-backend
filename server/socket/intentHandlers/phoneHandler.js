@@ -1,9 +1,21 @@
-const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
+const { CHAT_INTENTS /*, RESPONSE_TYPES */ } = require("../utils/messageTypes");
 const { getReservationByRoomAndDate } = require("../services/reservationService");
 const {
   sendAddPhoneConfirmation,
   sendErrorResponse
 } = require('../utils/uiResponder');
+const { Reservation } = require("../../models");
+
+/**
+ * Helper function to extract entity values.
+ * @param {Object} entities - The extracted entities object.
+ * @returns {Object} An object containing extracted values (phoneNumber, roomNumber, date).
+ */
+const getEntityValues = (entities) => ({
+    phoneNumber: entities.phoneNumber?.values[0]?.value,
+    roomNumber: entities.roomNumber?.values[0]?.value,
+    date: entities.date?.values[0]?.value || entities.startDate?.values[0]?.value // Allow date or startDate
+});
 
 /**
  * Handler pentru intenția de adăugare a unui număr de telefon
@@ -11,74 +23,65 @@ const {
  * @param {Function} sendResponse - Funcția de callback pentru trimiterea răspunsului
  */
 const handleAddPhoneIntent = async (entities, sendResponse) => {
-  console.log('📱 Adăugare număr de telefon cu entități:', entities);
+  console.log('📞 Handler adăugare telefon apelat cu entități:', entities);
 
-  // Așteptăm rezolvarea promise-ului pentru entități
-  const resolvedEntities = await entities;
-  console.log('📱 Entități rezolvate:', resolvedEntities);
+  const { phoneNumber, roomNumber, date } = getEntityValues(entities);
 
-  // Extragem corect numărul de telefon - poate fi în 'phoneNumber' sau 'phone' și poate fi obiect sau string
-  const phoneValueRaw = resolvedEntities.phoneNumber || resolvedEntities.phone;
-  if (!phoneValueRaw) {
+  if (!phoneNumber) {
     sendErrorResponse(sendResponse, CHAT_INTENTS.ADD_PHONE, "Te rog să specifici numărul de telefon care trebuie adăugat.");
     return;
   }
-  const phoneNumber = typeof phoneValueRaw === 'object' && phoneValueRaw.value !== undefined
-    ? String(phoneValueRaw.value) // Convertim la string
-    : String(phoneValueRaw);      // Convertim la string
-  console.log(`📱 Număr de telefon identificat: ${phoneNumber}`);
 
-  // Extragem și validăm numărul camerei
-  const roomNumberRaw = resolvedEntities.roomNumber;
-  if (!roomNumberRaw) {
+  // Clean the phone number (remove spaces, dashes, etc.) - adapt regex as needed
+  const cleanedPhoneNumber = String(phoneNumber).replace(/\s|-|\(|\)/g, '');
+  if (!/^[\+]?[0-9]{10,}$/.test(cleanedPhoneNumber)) { // Basic validation
+      sendErrorResponse(sendResponse, CHAT_INTENTS.ADD_PHONE, "Numărul de telefon specificat nu pare valid.");
+      return;
+  }
+
+  if (!roomNumber) {
     sendErrorResponse(sendResponse, CHAT_INTENTS.ADD_PHONE, "Te rog să specifici numărul camerei pentru a găsi rezervarea.");
     return;
   }
-  const roomNumber = typeof roomNumberRaw === 'object' && roomNumberRaw.value !== undefined
-    ? String(roomNumberRaw.value)
-    : String(roomNumberRaw);
 
-  // Extragem și validăm data
-  const dateRaw = resolvedEntities.dates?.[0]?.startDate;
-  if (!dateRaw) {
+  if (!date) {
     sendErrorResponse(sendResponse, CHAT_INTENTS.ADD_PHONE, "Te rog să specifici data rezervării pentru a asocia numărul de telefon.");
     return;
   }
-  const date = typeof dateRaw === 'object' && dateRaw.value !== undefined
-    ? String(dateRaw.value) 
-    : String(dateRaw);
 
   try {
-    console.log(`🔍 Căutare rezervare pentru camera ${roomNumber} la data ${date} pentru adăugare telefon ${phoneNumber}`);
-    
-    // Căutăm rezervarea în baza de date
-    const reservation = await getReservationByRoomAndDate(roomNumber, date);
+    // Find the reservation using the service
+    const reservation = await getReservationByRoomAndDate(String(roomNumber), date);
 
-    if (reservation) {
-      console.log(`✅ Rezervare găsită pentru adăugare telefon: ID ${reservation.id}`);
-      
-      // Verificăm că avem un ID valid pentru rezervare
-      if (!reservation.id) {
+    if (!reservation) {
+        sendErrorResponse(sendResponse, CHAT_INTENTS.ADD_PHONE, `Nu am găsit nicio rezervare pentru camera ${roomNumber} în data de ${date}. Nu pot asocia numărul de telefon.`);
+        return;
+    }
+    
+    if (!reservation.id) {
+        // This case might indicate an issue with getReservationByRoomAndDate or data integrity
+        console.error('Error: Found reservation object missing ID:', reservation);
         sendErrorResponse(sendResponse, CHAT_INTENTS.ADD_PHONE, `Am găsit rezervarea pentru camera ${roomNumber}, dar ID-ul rezervării lipsește.`);
         return;
-      }
-      
-      const reservationData = {
-        id: reservation.id,
-        roomNumber: roomNumber, // Folosim valoarea extrasă și validată
-        startDate: reservation.startDate,
-        endDate: reservation.endDate
-      };
-
-      // Trimitem confirmarea cu ID-ul rezervării folosind funcția centralizată
-      sendAddPhoneConfirmation(sendResponse, phoneNumber, reservationData);
-    } else {
-      // Nu am găsit rezervarea - trimitem un mesaj de eroare folosind funcția centralizată
-      sendErrorResponse(sendResponse, CHAT_INTENTS.ADD_PHONE, `Nu am găsit nicio rezervare pentru camera ${roomNumber} în data de ${date}. Nu pot asocia numărul de telefon.`);
     }
+
+    // Update the reservation in the database
+    const [updateCount] = await Reservation.update(
+      { phone: cleanedPhoneNumber },
+      { where: { id: reservation.id } }
+    );
+
+    if (updateCount > 0) {
+      console.log(`✅ Număr telefon ${cleanedPhoneNumber} adăugat la rezervarea ${reservation.id}`);
+      // Send confirmation (uses HISTORY format)
+      sendAddPhoneConfirmation(sendResponse, cleanedPhoneNumber, { id: reservation.id });
+    } else {
+      console.warn(`⚠️ Nu s-a putut actualiza telefonul pentru rezervarea ${reservation.id}. Rezervarea nu a fost găsită în DB (sau telefonul era deja setat)?`);
+       sendErrorResponse(sendResponse, CHAT_INTENTS.ADD_PHONE, `Nu s-a putut actualiza numărul de telefon pentru rezervarea #${reservation.id}.`);
+    }
+
   } catch (error) {
-    console.error("❌ Eroare la căutarea rezervării pentru adăugare telefon:", error);
-    // Eroare la căutarea în baza de date - trimitem un mesaj de eroare folosind funcția centralizată
+    console.error("❌ Eroare la asocierea numărului de telefon cu rezervarea:", error);
     sendErrorResponse(sendResponse, CHAT_INTENTS.ADD_PHONE, `A apărut o eroare la asocierea numărului de telefon cu rezervarea: ${error.message}`);
   }
 };

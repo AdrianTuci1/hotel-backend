@@ -1,4 +1,4 @@
-const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
+const { CHAT_INTENTS /*, RESPONSE_TYPES */ } = require("../utils/messageTypes");
 const {
   sendDefaultResponse
 } = require('../utils/uiResponder');
@@ -9,7 +9,7 @@ const {
  * @param {Function} sendResponse - Funcția de callback pentru trimiterea răspunsului
  */
 const handleDefaultIntent = (entities, sendResponse) => {
-  console.log('❓ Handler default apelat cu entități:', entities);
+  console.log('❓ Handler default/necunoscut apelat.');
   
   // Trimitem răspunsul default prin callback centralizat
   sendDefaultResponse(sendResponse);

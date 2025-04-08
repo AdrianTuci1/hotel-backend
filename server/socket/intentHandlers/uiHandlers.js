@@ -1,4 +1,4 @@
-const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
+const { CHAT_INTENTS /*, RESPONSE_TYPES */ } = require("../utils/messageTypes");
 const {
   sendShowCalendar,
   sendShowStock,

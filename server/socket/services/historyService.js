@@ -1,159 +1,147 @@
 const { MessageHistory } = require('../../models');
+const { OUTGOING_MESSAGE_TYPES, NOTIFICATION_TYPES } = require('../utils/messageTypes');
 const { Op } = require('sequelize');
-const { OUTGOING_MESSAGE_TYPES } = require('../utils/messageTypes');
+const { v4: uuidv4 } = require('uuid'); // For history item IDs
+const WebSocket = require('ws');
 
 /**
- * Service pentru gestionarea istoricului mesajelor
+ * Service pentru gestionarea istoricului mesajelor și evenimentelor
  */
 
-// Constante pentru paginare
-const DEFAULT_PAGE_SIZE = 20;
-const MAX_PAGE_SIZE = 100;
+// 🔥 Formatează o intrare din DB în formatul standard pentru HISTORY item
+const formatHistoryEntryForResponse = (dbEntry) => {
+  // Adapt this based on how different entry types are stored in MessageHistory model
+  let entryType = 'event'; // Default to generic event
+  let payload = {};
 
-// Constante pentru expirare
-const DEFAULT_EXPIRY_DAYS = 30;
+  // Example: Determine entryType and payload based on dbEntry fields
+  if (dbEntry.type === 'whatsapp_message' || dbEntry.type === 'booking_email' || dbEntry.type === 'price_analysis') {
+    entryType = 'notification';
+    payload = {
+      title: dbEntry.metadata?.title || 'Notification', // Extract from metadata or use default
+      message: dbEntry.content?.message || 'Details in content', // Extract from content
+      type: dbEntry.type, // The original DB type becomes the notification sub-type
+      data: dbEntry.content // Put original content as data
+    };
+  } else if (dbEntry.type === 'chat_message') { // Assuming chat messages are stored with this type
+      entryType = 'message';
+      payload = {
+          intent: dbEntry.metadata?.intent || null, // Extract intent if stored
+          message: dbEntry.content?.message || '' // Extract message text
+      };
+  } else {
+      // Generic event mapping
+      entryType = 'event';
+      payload = {
+        eventType: dbEntry.type, // Original DB type
+        action: dbEntry.action,
+        content: dbEntry.content,
+        metadata: dbEntry.metadata
+      };
+  }
 
-/**
- * Creează o nouă înregistrare în istoric
- * @param {Object} data - Datele mesajului
- * @param {string} data.type - Tipul mesajului
- * @param {string} data.action - Acțiunea efectuată
- * @param {Object} data.content - Conținutul mesajului
- * @param {Object} [data.metadata] - Metadate adiționale
- * @param {number} [data.expiryDays] - Numărul de zile până la expirare
- */
+  return {
+    id: dbEntry.id, // Use DB id
+    entryType: entryType,
+    timestamp: dbEntry.createdAt.toISOString(), // Use DB timestamp
+    payload: payload
+  };
+};
+
+
+// 🔥 Creează o nouă intrare în istoric
 const createHistoryEntry = async (data) => {
   try {
-    const { type, action, content, metadata, expiryDays = DEFAULT_EXPIRY_DAYS } = data;
-    
-    // Calculăm data de expirare
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + expiryDays);
-
-    // Creăm înregistrarea
+    // Validate or transform data before saving if needed
     const entry = await MessageHistory.create({
-      type,
-      action,
-      content,
-      metadata,
-      expiresAt
+      id: data.id || uuidv4(), // Allow providing ID or generate one
+      type: data.type, // e.g., 'whatsapp_message', 'chat_message', 'user_action'
+      action: data.action, // e.g., 'received', 'sent', 'created', 'failed'
+      content: data.content, // JSON object with main details
+      metadata: data.metadata, // JSON object with extra info
+      expiresAt: data.expiresAt // Optional expiry date
     });
-
+    console.log("💾 Intrare istoric creată:", entry.id);
     return entry;
   } catch (error) {
-    console.error('❌ Eroare la crearea înregistrării în istoric:', error);
+    console.error("❌ Eroare la crearea intrării în istoric:", error);
     throw error;
   }
 };
 
-/**
- * Trimite o actualizare către toți clienții conectați
- * @param {Set} clients - Setul de clienți conectați
- * @param {Object} data - Datele mesajului
- */
-const broadcastHistoryUpdate = (clients, data) => {
-  const message = JSON.stringify({
-    type: OUTGOING_MESSAGE_TYPES.NOTIFICATION,
-    notification: {
-      title: `${data.action} ${data.type}`,
-      message: `A fost efectuată o acțiune de tip ${data.action} pentru ${data.type}`,
-      type: 'history_update',
-      data
-    }
-  });
+// 🔥 Trimite un update de istoric către toți clienții (folosind formatul HISTORY)
+const broadcastHistoryUpdate = (clients, updatedEntry) => {
+  try {
+    const formattedEntry = formatHistoryEntryForResponse(updatedEntry); // Format the entry
+    const message = JSON.stringify({
+      type: OUTGOING_MESSAGE_TYPES.HISTORY,
+      data: {
+        items: [formattedEntry] // Send the single updated/new item
+      }
+    });
 
-  clients.forEach(client => {
-    if (client.readyState === 1) { // WebSocket.OPEN
-      client.send(message);
-    }
-  });
+    console.log(`📢 Difuzare update istoric (ID: ${formattedEntry.id}) către ${clients.size} clienți.`);
+    clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(message);
+      }
+    });
+  } catch (error) {
+    console.error("❌ Eroare la difuzarea update-ului de istoric:", error);
+  }
 };
 
-/**
- * Obține istoricul mesajelor cu paginare
- * @param {Object} options - Opțiuni pentru paginare și filtrare
- * @param {number} [options.page=1] - Numărul paginii
- * @param {number} [options.pageSize=20] - Dimensiunea paginii
- * @param {string} [options.type] - Tipul mesajelor de filtrat
- * @param {Date} [options.startDate] - Data de început pentru filtrare
- * @param {Date} [options.endDate] - Data de sfârșit pentru filtrare
- */
+// 🔥 Obține istoricul mesajelor cu paginare
 const getHistory = async (options = {}) => {
+  const { page = 1, pageSize = 50, filter = {} } = options;
+  const limit = parseInt(pageSize, 10);
+  const offset = (parseInt(page, 10) - 1) * limit;
+
+  // Build filter conditions (example)
+  const whereClause = {};
+  if (filter.type) {
+    whereClause.type = filter.type;
+  }
+  // Add other filters as needed
+
   try {
-    const {
-      page = 1,
-      pageSize = DEFAULT_PAGE_SIZE,
-      type,
-      startDate,
-      endDate
-    } = options;
-
-    // Validăm dimensiunea paginii
-    const validatedPageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
-    const offset = (page - 1) * validatedPageSize;
-
-    // Construim condițiile de filtrare
-    const where = {
-      expiresAt: {
-        [Op.or]: [
-          { [Op.gt]: new Date() },
-          { [Op.is]: null }
-        ]
-      }
-    };
-
-    if (type) {
-      where.type = type;
-    }
-
-    if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) {
-        where.createdAt[Op.gte] = startDate;
-      }
-      if (endDate) {
-        where.createdAt[Op.lte] = endDate;
-      }
-    }
-
-    // Obținem totalul și înregistrările
     const { count, rows } = await MessageHistory.findAndCountAll({
-      where,
+      where: whereClause,
       order: [['createdAt', 'DESC']],
-      limit: validatedPageSize,
-      offset
+      limit: limit,
+      offset: offset,
+      raw: false // Get Sequelize model instances to use formatHistoryEntryForResponse
     });
+
+    const formattedItems = rows.map(formatHistoryEntryForResponse);
 
     return {
       total: count,
-      page,
-      pageSize: validatedPageSize,
-      totalPages: Math.ceil(count / validatedPageSize),
-      items: rows
+      page: parseInt(page, 10),
+      pageSize: limit,
+      totalPages: Math.ceil(count / limit),
+      items: formattedItems // Use the formatted items
     };
   } catch (error) {
-    console.error('❌ Eroare la obținerea istoricului:', error);
+    console.error("❌ Eroare la obținerea istoricului:", error);
     throw error;
   }
 };
 
-/**
- * Șterge înregistrările expirate
- */
-const cleanupExpiredEntries = async () => {
+// 🔥 Șterge intrările din istoric mai vechi decât o anumită dată
+const deleteOldHistoryEntries = async (cutoffDate) => {
   try {
     const result = await MessageHistory.destroy({
       where: {
-        expiresAt: {
-          [Op.lt]: new Date()
+        createdAt: {
+          [Op.lt]: cutoffDate
         }
       }
     });
-
-    console.log(`🧹 Șterse ${result} înregistrări expirate din istoric`);
+    console.log(`🧹 Au fost șterse ${result} intrări vechi din istoric.`);
     return result;
   } catch (error) {
-    console.error('❌ Eroare la curățarea înregistrărilor expirate:', error);
+    console.error("❌ Eroare la ștergerea intrărilor vechi din istoric:", error);
     throw error;
   }
 };
@@ -162,5 +150,5 @@ module.exports = {
   createHistoryEntry,
   broadcastHistoryUpdate,
   getHistory,
-  cleanupExpiredEntries
+  deleteOldHistoryEntries
 }; 

@@ -5,58 +5,67 @@ const INCOMING_MESSAGE_TYPES = {
 
 // 📤 Tipuri de mesaje trimise către client
 const OUTGOING_MESSAGE_TYPES = {
-  CHAT: 'chat',
-  NOTIFICATION: 'notification',
-  RESERVATIONS: 'reservations',
-  HISTORY: 'history'
+  OVERLAY: 'overlay',             // Combined view switching and modal opening
+  APPOINTMENTS: 'appointments',     // Replaces 'reservations'
+  HISTORY: 'history'              // Combined history, chat messages, and notifications
 };
 
 // 🎯 Tipuri de intenții pentru chat
 const CHAT_INTENTS = {
-  // Rezervări
+  // Reservation Intents
   RESERVATION: 'reservation',
   MODIFY_RESERVATION: 'modify_reservation',
   CANCEL_RESERVATION: 'cancel_reservation',
   ADD_PHONE: 'add_phone',
   
-  // Camere
+  // Room Intents
   CREATE_ROOM: 'create_room',
   MODIFY_ROOM: 'modify_room',
   DELETE_ROOM: 'delete_room',
   ROOM_PROBLEM: 'room_problem',
-  ADD_ROOM: 'add_room',
+  ROOM: 'room', // Generic room intent, potentially used by create/modify overlay triggers
   
-  // Produse
-  ADD_PRODUCT: 'add_product',
-  
-  // Rapoarte și Facturi
+  // Report Intents
   SHOW_REPORTS: 'show_reports',
   SHOW_INVOICES: 'show_invoices',
   SHOW_ROOM_INVOICE: 'show_room_invoice',
   
-  // POS
+  // POS Intents
   SHOW_POS: 'show_pos',
   SELL_PRODUCT: 'sell_product',
   
-  // Calendar și Altele
+  // Calendar and Stock Intents
   SHOW_CALENDAR: 'show_calendar',
   SHOW_STOCK: 'show_stock',
   
-  // Altele
+  // Other Intents
   UNKNOWN: 'unknown_intent',
   DEFAULT: 'default'
 };
 
-// 📝 Tipuri de răspunsuri pentru chat (Refactored)
+// ❗ Deprecated: RESPONSE_TYPES are merged into OUTGOING_MESSAGE_TYPES
+// Keeping the object structure temporarily for easier refactoring reference,
+// but these values should not be used directly anymore.
 const RESPONSE_TYPES = {
-  SECONDARY: 'secondary', // Opens a secondary menu/view
-  OVERLAY: 'overlay',   // Opens an overlay/modal/form with data
-  CHAT: 'chat'        // Sends a simple text message to the chat interface
+  OVERLAY: 'overlay',     // For opening modals/forms (now part of OUTGOING_MESSAGE_TYPES.OVERLAY)
+  // SECONDARY: 'secondary', // Removed: Merged into OVERLAY
+  // CHAT: 'chat'        // Removed: Merged into HISTORY
+};
+
+// Used within HISTORY payload for entryType: 'notification'
+const NOTIFICATION_TYPES = {
+  BOOKING_EMAIL: 'booking_email',
+  WHATSAPP_MESSAGE: 'whatsapp_message',
+  PRICE_ANALYSIS: 'price_analysis',
+  HISTORY_UPDATE: 'history_update', // Example if history service broadcasts updates as notifications
+  ERROR: 'error',                 // Generic error notification type
+  INFO: 'info'                    // Generic info notification type
 };
 
 module.exports = {
   INCOMING_MESSAGE_TYPES,
   OUTGOING_MESSAGE_TYPES,
   CHAT_INTENTS,
-  RESPONSE_TYPES
+  // RESPONSE_TYPES, // Intentionally commented out - should be removed after refactor
+  NOTIFICATION_TYPES // Exporting notification sub-types
 }; 

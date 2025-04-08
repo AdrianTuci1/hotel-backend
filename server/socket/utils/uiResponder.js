@@ -1,79 +1,105 @@
-const { CHAT_INTENTS, RESPONSE_TYPES } = require("./messageTypes");
+const { CHAT_INTENTS, OUTGOING_MESSAGE_TYPES } = require("./messageTypes");
+const { v4: uuidv4 } = require('uuid'); // Import uuid for generating history IDs
 
 /**
- * [SECONDARY] Sends a response to show the calendar.
+ * Helper to wrap a message payload into the HISTORY format
+ * @param {String} intent - The original intent
+ * @param {String} message - The message text
+ * @returns {Object} - Formatted HISTORY message object
+ */
+const formatHistoryMessage = (intent, message) => {
+  return {
+    type: OUTGOING_MESSAGE_TYPES.HISTORY,
+    data: {
+      items: [
+        {
+          id: uuidv4(), // Generate a unique ID for the history item
+          entryType: 'message',
+          timestamp: new Date().toISOString(),
+          payload: {
+            intent: intent,
+            message: message,
+          }
+        }
+      ]
+    }
+  };
+}
+
+/**
+ * [OVERLAY - View Switch] Sends a response to show the calendar.
  * @param {Function} sendResponse - The callback function to send the response.
  */
 const sendShowCalendar = (sendResponse) => {
   const response = {
     intent: CHAT_INTENTS.SHOW_CALENDAR,
-    type: RESPONSE_TYPES.SECONDARY,
+    type: OUTGOING_MESSAGE_TYPES.OVERLAY, // Changed from SECONDARY
     action: "show_calendar",
   };
   sendResponse(response);
 };
 
 /**
- * [SECONDARY] Sends a response to show the stock module.
+ * [OVERLAY - View Switch] Sends a response to show the stock module.
  * @param {Function} sendResponse - The callback function to send the response.
  */
 const sendShowStock = (sendResponse) => {
   const response = {
     intent: CHAT_INTENTS.SHOW_STOCK,
-    type: RESPONSE_TYPES.SECONDARY,
+    type: OUTGOING_MESSAGE_TYPES.OVERLAY, // Changed from SECONDARY
     action: "show_stock",
   };
   sendResponse(response);
 };
 
 /**
- * [SECONDARY] Sends a response to show the reports module.
+ * [OVERLAY - View Switch] Sends a response to show the reports module.
  * @param {Function} sendResponse - The callback function to send the response.
  */
 const sendShowReports = (sendResponse) => {
   const response = {
     intent: CHAT_INTENTS.SHOW_REPORTS,
-    type: RESPONSE_TYPES.SECONDARY,
+    type: OUTGOING_MESSAGE_TYPES.OVERLAY, // Changed from SECONDARY
     action: "show_reports",
   };
   sendResponse(response);
 };
 
 /**
- * [SECONDARY] Sends a response to show the invoices module.
+ * [OVERLAY - View Switch] Sends a response to show the invoices module.
  * @param {Function} sendResponse - The callback function to send the response.
  */
 const sendShowInvoices = (sendResponse) => {
   const response = {
     intent: CHAT_INTENTS.SHOW_INVOICES,
-    type: RESPONSE_TYPES.SECONDARY,
+    type: OUTGOING_MESSAGE_TYPES.OVERLAY, // Changed from SECONDARY
     action: "show_invoices",
   };
   sendResponse(response);
 };
 
 /**
- * [SECONDARY] Sends a response to show the POS module.
+ * [OVERLAY - View Switch] Sends a response to show the POS module.
  * @param {Function} sendResponse - The callback function to send the response.
  */
 const sendShowPos = (sendResponse) => {
   const response = {
     intent: CHAT_INTENTS.SHOW_POS,
-    type: RESPONSE_TYPES.SECONDARY,
+    type: OUTGOING_MESSAGE_TYPES.OVERLAY, // Changed from SECONDARY
     action: "show_pos",
   };
   sendResponse(response);
 };
 
 /**
- * [OVERLAY] Sends a response to open the new reservation overlay (in calendar context).
+ * [OVERLAY - Modal] Sends a response to open the new reservation overlay (in calendar context).
  * @param {Function} sendResponse - The callback function to send the response.
  * @param {Object} reservationData - Data for the new reservation (fullName, roomType, startDate, endDate).
  */
 const sendOpenNewReservationOverlay = (sendResponse, reservationData) => {
   const response = {
     intent: CHAT_INTENTS.RESERVATION,
-    type: RESPONSE_TYPES.OVERLAY,
+    type: OUTGOING_MESSAGE_TYPES.OVERLAY, // Changed from RESPONSE_TYPES
     action: "show_calendar",
     payload: reservationData
   };
@@ -81,14 +107,14 @@ const sendOpenNewReservationOverlay = (sendResponse, reservationData) => {
 };
 
 /**
- * [OVERLAY] Sends a response to open the modify reservation overlay (in calendar context).
+ * [OVERLAY - Modal] Sends a response to open the modify reservation overlay (in calendar context).
  * @param {Function} sendResponse - The callback function to send the response.
  * @param {Object} reservationData - Data for the existing reservation (id, roomNumber, startDate, endDate).
  */
 const sendOpenModifyReservationOverlay = (sendResponse, reservationData) => {
   const response = {
-    intent: CHAT_INTENTS.MODIFY_RESERVATION,
-    type: RESPONSE_TYPES.OVERLAY,
+    intent: CHAT_INTENTS.RESERVATION, // Should this be MODIFY_RESERVATION?
+    type: OUTGOING_MESSAGE_TYPES.OVERLAY, // Changed from RESPONSE_TYPES
     action: "show_calendar",
     payload: reservationData
   };
@@ -96,29 +122,25 @@ const sendOpenModifyReservationOverlay = (sendResponse, reservationData) => {
 };
 
 /**
- * [CHAT] Sends a generic error response.
+ * [HISTORY - Message] Sends a generic error response.
  * @param {Function} sendResponse - The callback function to send the response.
  * @param {String} intent - The original intent.
  * @param {String} message - The error message.
  */
 const sendErrorResponse = (sendResponse, intent, message) => {
-  const response = {
-    intent: intent,
-    type: RESPONSE_TYPES.CHAT,
-    message: message,
-  };
+  const response = formatHistoryMessage(intent, message); // Changed from CHAT
   sendResponse(response);
 };
 
 /**
- * [OVERLAY] Sends a response to open the POS module for selling a product (in POS context).
+ * [OVERLAY - Modal] Sends a response to open the POS module for selling a product (in POS context).
  * @param {Function} sendResponse - The callback function to send the response.
  * @param {Object} posData - Data for the POS sale (productName, quantity).
  */
 const sendOpenPosForSale = (sendResponse, posData) => {
   const response = {
     intent: CHAT_INTENTS.SELL_PRODUCT,
-    type: RESPONSE_TYPES.OVERLAY,
+    type: OUTGOING_MESSAGE_TYPES.OVERLAY, // Changed from RESPONSE_TYPES
     action: "show_pos",
     payload: posData
   };
@@ -126,44 +148,38 @@ const sendOpenPosForSale = (sendResponse, posData) => {
 };
 
 /**
- * [CHAT] Sends a confirmation response after reporting a room problem.
+ * [HISTORY - Message] Sends a confirmation response after reporting a room problem.
  * @param {Function} sendResponse - The callback function to send the response.
  * @param {Object} problemData - Data about the reported problem (roomNumber, problemDescription, reportedAt, status).
  */
 const sendProblemReportConfirmation = (sendResponse, problemData) => {
   const { roomNumber } = problemData;
-  const response = {
-    intent: CHAT_INTENTS.ROOM_PROBLEM,
-    type: RESPONSE_TYPES.CHAT,
-    message: `Problema a fost raportată cu succes pentru camera ${roomNumber}`,
-  };
+  const message = `Problema a fost raportată cu succes pentru camera ${roomNumber}`;
+  const response = formatHistoryMessage(CHAT_INTENTS.ROOM_PROBLEM, message); // Changed from CHAT
   sendResponse(response);
 };
 
 /**
- * [CHAT] Sends a confirmation response after associating a phone number with a reservation.
+ * [HISTORY - Message] Sends a confirmation response after associating a phone number with a reservation.
  * @param {Function} sendResponse - The callback function to send the response.
  * @param {string} phoneNumber - The phone number added.
  * @param {Object} reservationData - Data for the associated reservation.
  */
 const sendAddPhoneConfirmation = (sendResponse, phoneNumber, reservationData) => {
-  const response = {
-    intent: CHAT_INTENTS.ADD_PHONE,
-    type: RESPONSE_TYPES.CHAT,
-    message: `Numărul de telefon ${phoneNumber} a fost adăugat cu succes la rezervarea #${reservationData.id}.`,
-  };
+  const message = `Numărul de telefon ${phoneNumber} a fost adăugat cu succes la rezervarea #${reservationData.id}.`;
+  const response = formatHistoryMessage(CHAT_INTENTS.ADD_PHONE, message); // Changed from CHAT
   sendResponse(response);
 };
 
 /**
- * [OVERLAY] Sends a response with data needed to create a new room (in calendar context).
+ * [OVERLAY - Modal] Sends a response with data needed to create a new room (in calendar context).
  * @param {Function} sendResponse - The callback function to send the response.
  * @param {Object} roomData - Data for the new room (number, type, price).
  */
 const sendCreateRoomResponse = (sendResponse, roomData) => {
   const response = {
-    intent: CHAT_INTENTS.CREATE_ROOM,
-    type: RESPONSE_TYPES.OVERLAY,
+    intent: CHAT_INTENTS.ROOM, // Should this be CREATE_ROOM?
+    type: OUTGOING_MESSAGE_TYPES.OVERLAY, // Changed from RESPONSE_TYPES
     action: "show_calendar",
     payload: roomData
   };
@@ -171,14 +187,14 @@ const sendCreateRoomResponse = (sendResponse, roomData) => {
 };
 
 /**
- * [OVERLAY] Sends a response with data needed to modify an existing room (in calendar context).
+ * [OVERLAY - Modal] Sends a response with data needed to modify an existing room (in calendar context).
  * @param {Function} sendResponse - The callback function to send the response.
  * @param {Object} roomData - Data for modifying the room (id, number, type, price).
  */
 const sendModifyRoomResponse = (sendResponse, roomData) => {
   const response = {
-    intent: CHAT_INTENTS.MODIFY_ROOM,
-    type: RESPONSE_TYPES.OVERLAY,
+    intent: CHAT_INTENTS.ROOM, // Should this be MODIFY_ROOM?
+    type: OUTGOING_MESSAGE_TYPES.OVERLAY, // Changed from RESPONSE_TYPES
     action: "show_calendar",
     payload: roomData
   };
@@ -186,29 +202,23 @@ const sendModifyRoomResponse = (sendResponse, roomData) => {
 };
 
 /**
- * [CHAT] Sends a confirmation request before deleting a room.
+ * [HISTORY - Message] Sends a confirmation request before deleting a room.
  * @param {Function} sendResponse - The callback function to send the response.
  * @param {Object} roomData - Data of the room to be deleted (id, number, type).
  */
 const sendDeleteRoomConfirmation = (sendResponse, roomData) => {
-  const response = {
-    intent: CHAT_INTENTS.DELETE_ROOM,
-    type: RESPONSE_TYPES.CHAT,
-    message: `Sigur doriți să ștergeți camera ${roomData.number}?`,
-  };
+  const message = `Sigur doriți să ștergeți camera ${roomData.number}?`;
+  const response = formatHistoryMessage(CHAT_INTENTS.DELETE_ROOM, message); // Changed from CHAT
   sendResponse(response);
 };
 
 /**
- * [CHAT] Sends a default response for unrecognized intents.
+ * [HISTORY - Message] Sends a default response for unrecognized intents.
  * @param {Function} sendResponse - The callback function to send the response.
  */
 const sendDefaultResponse = (sendResponse) => {
-  const response = {
-    intent: CHAT_INTENTS.DEFAULT,
-    type: RESPONSE_TYPES.CHAT,
-    message: "Îmi pare rău, dar nu am înțeles exact ce doriți să faceți. Vă pot ajuta cu rezervări, vizualizarea calendarului, rapoarte sau stocuri.",
-  };
+  const message = "Îmi pare rău, dar nu am înțeles exact ce doriți să faceți. Vă pot ajuta cu rezervări, vizualizarea calendarului, rapoarte sau stocuri.";
+  const response = formatHistoryMessage(CHAT_INTENTS.DEFAULT, message); // Changed from CHAT
   sendResponse(response);
 };
 

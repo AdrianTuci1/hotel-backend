@@ -3,167 +3,166 @@ const {
   processWhatsAppMessage, 
   analyzePrices 
 } = require('../services/automationService');
-const { OUTGOING_MESSAGE_TYPES, AUTOMATION_ACTIONS } = require('../utils/messageTypes');
+const { OUTGOING_MESSAGE_TYPES, NOTIFICATION_TYPES } = require('../utils/messageTypes');
+const { v4: uuidv4 } = require('uuid'); // For history item IDs
 
 /**
  * Controller pentru manipularea acțiunilor de automatizare
  */
 
+// Helper to format notifications as HISTORY items
+const formatNotificationHistory = (notificationPayload, historyId = null) => {
+  return {
+    type: OUTGOING_MESSAGE_TYPES.HISTORY,
+    data: {
+      items: [
+        {
+          id: historyId || uuidv4(), // Use provided ID or generate a new one
+          entryType: 'notification',
+          timestamp: new Date().toISOString(),
+          payload: notificationPayload // The original notification object goes here
+        }
+      ]
+    }
+  };
+};
+
 // Manipulează verificarea și procesarea email-urilor de la Booking.com
 const handleBookingEmail = async (ws) => {
   try {
     console.log("🔄 Manipulare verificare email-uri Booking");
-    const result = await processBookingEmail();
+    const result = await processBookingEmail(); // result structure: { result: { success, message }, data: { guestName } }
     
-    ws.send(JSON.stringify({
-      type: OUTGOING_MESSAGE_TYPES.NOTIFICATION,
-      notification: {
-        title: "Verificare email-uri Booking",
-        message: result.result?.success 
-          ? `Rezervare creată automat pentru ${result.data.guestName}` 
-          : (result.result?.message || "Nu au fost găsite email-uri noi"),
-        type: "booking_email",
-        data: result
-      }
-    }));
+    const notificationPayload = {
+      title: "Verificare email-uri Booking",
+      message: result.result?.success 
+        ? `Rezervare creată automat pentru ${result.data.guestName}` 
+        : (result.result?.message || "Nu au fost găsite email-uri noi"),
+      type: NOTIFICATION_TYPES.BOOKING_EMAIL, // Specific notification type
+      data: result // Include the full result data from the service
+    };
+
+    const historyMessage = formatNotificationHistory(notificationPayload);
+    ws.send(JSON.stringify(historyMessage)); // Changed from NOTIFICATION
+
   } catch (error) {
     console.error("❌ Eroare la manipularea verificării email-urilor Booking:", error);
-    ws.send(JSON.stringify({
-      type: OUTGOING_MESSAGE_TYPES.ERROR,
-      message: "A apărut o eroare la verificarea email-urilor Booking"
-    }));
+    // Format error as HISTORY notification
+    const errorPayload = {
+        title: "Eroare Automatizare",
+        message: "A apărut o eroare la verificarea email-urilor Booking",
+        type: NOTIFICATION_TYPES.ERROR,
+        data: { details: error.message }
+    };
+    const historyErrorMessage = formatNotificationHistory(errorPayload);
+    ws.send(JSON.stringify(historyErrorMessage));
   }
 };
 
 // Manipulează verificarea și procesarea mesajelor WhatsApp
 const handleWhatsAppMessage = async (ws) => {
   try {
-    console.log("🔄 Manipulare verificare mesaje WhatsApp");
-    const result = await processWhatsAppMessage();
-    
-    ws.send(JSON.stringify({
-      type: OUTGOING_MESSAGE_TYPES.NOTIFICATION,
-      notification: {
-        title: "Verificare mesaje WhatsApp",
-        message: result.displayMessage,
-        type: "whatsapp_message",
-        data: {
-          ...result,
-          action: result.requiresIntervention ? "requires_intervention" : "auto_processed",
-          buttons: result.requiresIntervention ? [
-            {
-              text: "Nu necesită intervenție",
-              action: "mark_no_intervention_needed"
-            }
-          ] : []
-        }
-      }
-    }));
+    console.log("🔄 Manipulare procesare mesaje WhatsApp");
+    const result = await processWhatsAppMessage(); // result structure includes { historyEntry, ... }
 
-    // Dacă avem o intrare în istoric, o trimitem și ca update separat
+    // The automation service might have already created a history entry.
+    // If so, we should send THAT entry instead of creating a new notification.
     if (result.historyEntry) {
-      ws.send(JSON.stringify({
+      // Ensure the history entry from the service matches the standard format
+      const historyMessage = {
         type: OUTGOING_MESSAGE_TYPES.HISTORY,
         data: {
-          action: "add",
-          item: result.historyEntry
+            // Assuming result.historyEntry contains the full item structure { id, entryType, timestamp, payload }
+            // If not, adapt this part to create the correct structure
+            items: [result.historyEntry] 
         }
-      }));
+      };
+       ws.send(JSON.stringify(historyMessage));
+    } else {
+       // If no history entry was created by the service (e.g., just an info message),
+       // create a standard notification history item.
+       const notificationPayload = {
+          title: "Procesare Mesaj WhatsApp",
+          message: result.displayMessage || "Procesare WhatsApp finalizată.", // Use display message from service
+          type: NOTIFICATION_TYPES.WHATSAPP_MESSAGE,
+          data: result // Include full result data
+       };
+       const historyMessage = formatNotificationHistory(notificationPayload);
+       ws.send(JSON.stringify(historyMessage));
     }
+
   } catch (error) {
-    console.error("❌ Eroare la manipularea verificării mesajelor WhatsApp:", error);
-    ws.send(JSON.stringify({
-      type: OUTGOING_MESSAGE_TYPES.ERROR,
-      message: "A apărut o eroare la verificarea mesajelor WhatsApp"
-    }));
+    console.error("❌ Eroare la manipularea procesării mesajelor WhatsApp:", error);
+     const errorPayload = {
+        title: "Eroare Automatizare",
+        message: "A apărut o eroare la procesarea mesajelor WhatsApp",
+        type: NOTIFICATION_TYPES.ERROR,
+        data: { details: error.message }
+    };
+    const historyErrorMessage = formatNotificationHistory(errorPayload);
+    ws.send(JSON.stringify(historyErrorMessage));
   }
 };
 
-// Manipulează analiza prețurilor
+// Manipulează analiza automată a prețurilor
 const handlePriceAnalysis = async (ws) => {
   try {
     console.log("🔄 Manipulare analiză prețuri");
-    const result = await analyzePrices();
-    
-    ws.send(JSON.stringify({
-      type: OUTGOING_MESSAGE_TYPES.NOTIFICATION,
-      notification: {
-        title: "Analiză prețuri",
-        message: `Recomandare: ${result.analysis.recommendation}`,
-        type: "price_analysis",
-        data: result
-      }
-    }));
+    const result = await analyzePrices(); // result structure: { analysis, roomType, currentPrice }
+
+     const notificationPayload = {
+        title: "Analiză Prețuri Camere",
+        message: result.analysis?.recommendation 
+            ? `Analiză prețuri finalizată. Recomandare: ${result.analysis.recommendation}`
+            : "Analiza prețurilor finalizată.",
+        type: NOTIFICATION_TYPES.PRICE_ANALYSIS,
+        data: result // Include full result data
+     };
+     const historyMessage = formatNotificationHistory(notificationPayload);
+     ws.send(JSON.stringify(historyMessage)); // Changed from NOTIFICATION
+
   } catch (error) {
     console.error("❌ Eroare la manipularea analizei prețurilor:", error);
-    ws.send(JSON.stringify({
-      type: OUTGOING_MESSAGE_TYPES.ERROR,
-      message: "A apărut o eroare la analiza prețurilor"
-    }));
+     const errorPayload = {
+        title: "Eroare Automatizare",
+        message: "A apărut o eroare la analiza automată a prețurilor",
+        type: NOTIFICATION_TYPES.ERROR,
+        data: { details: error.message }
+    };
+    const historyErrorMessage = formatNotificationHistory(errorPayload);
+    ws.send(JSON.stringify(historyErrorMessage));
   }
 };
 
-// Procesează acțiunile de automatizare
-const handleAutomationAction = async (ws, action) => {
-  try {
-    console.log(`🤖 Procesare acțiune automatizare: ${action}`);
-    
-    switch (action) {
-      case AUTOMATION_ACTIONS.BOOKING_EMAIL:
-        await handleBookingEmail(ws);
-        break;
-        
-      case AUTOMATION_ACTIONS.WHATSAPP_MESSAGE:
-        await handleWhatsAppMessage(ws);
-        break;
-        
-      case AUTOMATION_ACTIONS.PRICE_ANALYSIS:
-        await handlePriceAnalysis(ws);
-        break;
-        
-      default:
-        throw new Error(`Acțiune automatizare necunoscută: ${action}`);
-    }
-  } catch (error) {
-    console.error(`❌ Eroare la procesarea acțiunii automatizare ${action}:`, error);
-    ws.send(JSON.stringify({
-      type: OUTGOING_MESSAGE_TYPES.ERROR,
-      message: `Eroare la procesarea acțiunii automatizare: ${error.message}`
-    }));
-  }
-};
-
-// Configurează verificările periodice pentru automatizări
+// Configurează și pornește verificările automate periodice
 const setupAutomationChecks = (ws) => {
-  console.log("⏰ Configurare verificări automate periodice");
+  console.log("⚙️ Configurare verificări automate pentru client...");
+  
+  // Stochează ID-urile intervalelor pentru a le putea opri la deconectare
+  const intervals = {};
 
-  // Verificare email-uri Booking.com la fiecare 5 minute
-  const bookingEmailInterval = setInterval(() => {
+  // Verificare email-uri Booking la interval regulat (ex: 5 minute)
+  intervals.bookingEmailInterval = setInterval(() => {
     handleBookingEmail(ws);
-  }, 5 * 60 * 1000);
+  }, 5 * 60 * 1000); // 5 minutes
 
-  // Verificare mesaje WhatsApp la fiecare 2 minute
-  const whatsAppInterval = setInterval(() => {
+  // Procesare mesaje WhatsApp la interval regulat (ex: 1 minut)
+  intervals.whatsAppInterval = setInterval(() => {
     handleWhatsAppMessage(ws);
-  }, 2 * 60 * 1000);
+  }, 1 * 60 * 1000); // 1 minute
 
-  // Analiză prețuri zilnică
-  const priceAnalysisInterval = setInterval(() => {
+  // Analiză prețuri la interval regulat (ex: 1 oră)
+  intervals.priceAnalysisInterval = setInterval(() => {
     handlePriceAnalysis(ws);
-  }, 24 * 60 * 60 * 1000);
+  }, 60 * 60 * 1000); // 1 hour
 
-  // Returnăm intervallele pentru a putea fi oprite dacă e nevoie
-  return {
-    bookingEmailInterval,
-    whatsAppInterval,
-    priceAnalysisInterval
-  };
+  console.log("✅ Verificări automate configurate.");
+  return intervals;
 };
 
 module.exports = {
   handleBookingEmail,
   handleWhatsAppMessage,
   handlePriceAnalysis,
-  handleAutomationAction,
   setupAutomationChecks
 }; 

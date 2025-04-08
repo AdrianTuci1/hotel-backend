@@ -2,7 +2,8 @@ const { processMessage } = require('./actionHandler');
 const { sendActiveReservationsToClient } = require('../controllers/reservationController');
 const { setupAutomationChecks } = require('../controllers/automationController');
 const { broadcastHistoryUpdate, getHistory } = require('../services/historyService');
-const { OUTGOING_MESSAGE_TYPES } = require('../utils/messageTypes');
+const { OUTGOING_MESSAGE_TYPES, NOTIFICATION_TYPES } = require('../utils/messageTypes');
+const { v4: uuidv4 } = require('uuid');
 
 /**
  * Handler pentru conexiunile WebSocket
@@ -14,6 +15,27 @@ let clients = new Set();
 // Obține setul de clienți activi
 const getClients = () => clients;
 
+// Helper to format error notifications as HISTORY items
+const formatErrorHistory = (title, message) => {
+  return {
+    type: OUTGOING_MESSAGE_TYPES.HISTORY,
+    data: {
+      items: [
+        {
+          id: uuidv4(),
+          entryType: 'notification',
+          timestamp: new Date().toISOString(),
+          payload: {
+            title: title,
+            message: message,
+            type: NOTIFICATION_TYPES.ERROR
+          }
+        }
+      ]
+    }
+  };
+};
+
 // Gestionează o nouă conexiune WebSocket
 const handleConnection = async (ws) => {
   console.log("✅ Client WebSocket conectat.");
@@ -24,28 +46,25 @@ const handleConnection = async (ws) => {
   // Atașăm funcția getClients la ws pentru a fi accesibilă în diverse handlere
   ws.getClients = getClients;
 
-  // Trimitem rezervările active la clientul conectat
+  // Trimitem appointments active la clientul conectat
   sendActiveReservationsToClient(ws);
 
   // Trimitem istoricul mesajelor la clientul conectat
   try {
-    const history = await getHistory({ pageSize: 50 }); // Trimitem ultimele 50 de mesaje
+    const historyData = await getHistory({ pageSize: 50 }); // Fetch history data
     const message = JSON.stringify({
       type: OUTGOING_MESSAGE_TYPES.HISTORY,
-      data: history
+      data: historyData
     });
     ws.send(message);
   } catch (error) {
     console.error('❌ Eroare la trimiterea istoricului:', error);
-    // Trimitem notificare de eroare
-    const errorMessage = JSON.stringify({
-      type: OUTGOING_MESSAGE_TYPES.NOTIFICATION,
-      data: {
-        message: 'Eroare la încărcarea istoricului',
-        severity: 'error'
-      }
-    });
-    ws.send(errorMessage);
+    // Trimitem notificare de eroare formatată ca HISTORY item
+    const errorMessage = formatErrorHistory(
+      "Eroare Istoric",
+      "Eroare la încărcarea istoricului mesajelor"
+    );
+    ws.send(JSON.stringify(errorMessage));
   }
 
   // Configurăm verificările automate pentru acest client
@@ -74,16 +93,13 @@ const handleConnection = async (ws) => {
 
 // Curăță resursele asociate conexiunii la deconectare
 const cleanupConnection = (ws) => {
-  // Eliminăm clientul din lista de clienți activi
-  clients.delete(ws);
-  
-  // Curățăm intervalele de verificare automată
+  // Oprim intervalele de automatizare specifice acestui client
   if (ws.intervals) {
-    const { bookingEmailInterval, whatsAppInterval, priceAnalysisInterval } = ws.intervals;
-    clearInterval(bookingEmailInterval);
-    clearInterval(whatsAppInterval);
-    clearInterval(priceAnalysisInterval);
+    Object.values(ws.intervals).forEach(clearInterval);
+    console.log("🛑 Intervale de automatizare oprite pentru clientul deconectat.");
   }
+  // Scoatem clientul din lista de clienți activi
+  clients.delete(ws);
 };
 
 module.exports = {

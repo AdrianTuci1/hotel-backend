@@ -1,92 +1,74 @@
-const { CHAT_INTENTS, RESPONSE_TYPES } = require("../utils/messageTypes");
-const { RoomStatus } = require("../../models");
+const { CHAT_INTENTS /*, RESPONSE_TYPES */ } = require("../utils/messageTypes");
+const { RoomStatus, ProblemReport } = require("../../models");
 const {
   sendProblemReportConfirmation,
   sendErrorResponse
 } = require('../utils/uiResponder');
 
 /**
- * Handler pentru intenția de raportare a unei probleme într-o cameră
- * @param {Object} entities - Entitățile extrase din mesaj
- * @param {Function} sendResponse - Funcția de callback pentru trimiterea răspunsului
+ * Helper function to extract entity values.
+ * @param {Object} entities - The extracted entities object.
+ * @returns {Object} An object containing extracted values (roomNumber, problemDescription).
+ */
+const getEntityValues = (entities) => ({
+  roomNumber: entities.roomNumber?.values[0]?.value,
+  problemDescription: entities.problemDescription?.values[0]?.value
+});
+
+/**
+ * Handler for reporting a room problem.
+ * Validates entities, saves the report, and sends confirmation.
+ * @param {Object} entities - Extracted entities.
+ * @param {Function} sendResponse - Callback function to send the response.
  */
 const handleRoomProblemIntent = async (entities, sendResponse) => {
-  console.log('🔧 Handler problemă cameră apelat cu entități:', entities);
-  
-  // Verificăm dacă entities este un obiect valid
-  if (!entities || typeof entities !== 'object') {
-    console.error('❌ Entități invalide primite:', entities);
+  console.log('🔧 Handler raportare problemă cameră apelat cu entități:', entities);
+
+  if (!entities) {
     sendErrorResponse(sendResponse, CHAT_INTENTS.ROOM_PROBLEM, "A apărut o eroare la procesarea mesajului. Vă rugăm să încercați din nou.");
     return;
   }
 
-  // Verificăm dacă avem numărul camerei
-  const roomNumberValue = typeof entities.roomNumber === 'object' && entities.roomNumber.value !== undefined 
-    ? entities.roomNumber.value 
-    : entities.roomNumber;
-  if (!roomNumberValue) {
+  const { roomNumber, problemDescription } = getEntityValues(entities);
+
+  if (!roomNumber) {
     sendErrorResponse(sendResponse, CHAT_INTENTS.ROOM_PROBLEM, "Te rog să specifici numărul camerei care are o problemă.");
     return;
   }
-  const roomNumber = String(roomNumberValue); // Asigurăm că e string
 
-  // Verificăm dacă avem descrierea problemei
-  const problemDescriptionValue = typeof entities.problemDescription === 'object' && entities.problemDescription.value !== undefined
-    ? entities.problemDescription.value
-    : entities.problemDescription;
-  if (!problemDescriptionValue) {
+  if (!problemDescription) {
     sendErrorResponse(sendResponse, CHAT_INTENTS.ROOM_PROBLEM, "Te rog să descrii problema întâmpinată în cameră.");
     return;
   }
-  const problemDescription = String(problemDescriptionValue); // Asigurăm că e string
-  
+
   try {
-    // Căutăm camera în baza de date
-    let roomStatus = await RoomStatus.findOne({
-      where: { roomNumber }
-    });
-
-    const reportedAt = new Date();
-
-    if (!roomStatus) {
-      // Dacă camera nu există, o creăm
-      try {
-        roomStatus = await RoomStatus.create({
-          roomNumber,
-          isClean: true,
-          hasProblems: true,
-          problem: problemDescription,
-          reportedAt: reportedAt
-        });
-      } catch (createError) {
-        console.error('❌ Eroare la crearea statusului camerei:', createError);
-        sendErrorResponse(sendResponse, CHAT_INTENTS.ROOM_PROBLEM, "Nu am putut actualiza statusul camerei. Vă rugăm să încercați din nou.");
-        return;
-      }
-    } else {
-      // Dacă camera există, actualizăm statusul
-      await roomStatus.update({
-        hasProblems: true,
-        problem: problemDescription,
-        reportedAt: reportedAt
-      });
-      // Reîncarcăm instanța pentru a avea datele actualizate
-      await roomStatus.reload();
-    }
-
-    const problemData = {
-      roomNumber,
-      problemDescription,
-      reportedAt: reportedAt.toISOString(),
-      status: roomStatus.toJSON()
+    // Save the problem report to the database
+    const reportData = {
+      roomNumber: String(roomNumber),
+      description: String(problemDescription),
+      reportedAt: new Date(),
+      status: 'reported' // Initial status
     };
+    
+    const newReport = await ProblemReport.create(reportData);
+    console.log('💾 Problemă cameră salvată în DB:', newReport.id);
 
-    // Trimitem răspunsul de succes cu toate informațiile necesare, centralizat
-    sendProblemReportConfirmation(sendResponse, problemData);
+    // Send confirmation (which uses HISTORY format now)
+    sendProblemReportConfirmation(sendResponse, reportData);
+
+    // TODO: Optionally update room status in the Room model
+    // try {
+    //   await Room.update({ status: 'needs_maintenance' }, { where: { number: reportData.roomNumber } });
+    //   console.log(`🚪 Status cameră ${reportData.roomNumber} actualizat la 'needs_maintenance'.`);
+    // } catch (roomUpdateError) {
+    //   console.error('❌ Eroare la actualizarea statusului camerei:', roomUpdateError);
+    //   // Decide if we should notify the user about this secondary failure
+    //   // sendErrorResponse(sendResponse, CHAT_INTENTS.ROOM_PROBLEM, "Nu am putut actualiza statusul camerei. Vă rugăm să încercați din nou.");
+    // }
 
   } catch (error) {
-    console.error('❌ Eroare la actualizarea statusului camerei:', error);
-    sendErrorResponse(sendResponse, CHAT_INTENTS.ROOM_PROBLEM, "Nu am putut actualiza statusul camerei. Vă rugăm să încercați din nou.");
+    console.error('❌ Eroare la salvarea raportului de problemă:', error);
+    sendErrorResponse(sendResponse, CHAT_INTENTS.ROOM_PROBLEM, "A apărut o eroare la salvarea raportului. Vă rugăm să încercați din nou.");
   }
 };
 
